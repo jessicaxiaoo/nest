@@ -9,7 +9,6 @@ export default function PhotoUpload({
   showGuidelines = true,
   label = 'Drop a photo here, or click to browse',
   hint = null,
-  compress = true,
 }) {
   const inputRef = useRef(null)
   const [processing, setProcessing] = useState(false)
@@ -22,23 +21,13 @@ export default function PhotoUpload({
     setProcessError('')
 
     try {
-      const result = compress ? await compressImage(file) : await readAsDataUrl(file)
-      onPhotoChange(result)
+      onPhotoChange(await compressImage(file))
       if (inputRef.current) inputRef.current.value = ''
     } catch {
       setProcessError('Could not process that image — try a different photo.')
     } finally {
       setProcessing(false)
     }
-  }
-
-  function readAsDataUrl(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (e) => resolve(e.target.result)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
   }
 
   function handleDrop(e) {

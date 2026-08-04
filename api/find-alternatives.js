@@ -1,4 +1,8 @@
-import { handleAnalyzeRoomRequest } from './lib/generateRoomPlan.js'
+import {
+  handleFindAlternativesRequest,
+  streamFindAlternativesRequest,
+} from './lib/findAlternatives.js'
+import { createSseStream, wantsEventStream } from './lib/sse.js'
 import { readJsonBody } from './lib/utils.js'
 
 export default async function handler(req, res) {
@@ -8,9 +12,20 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body ?? (await readJsonBody(req))
-    const { status, body: responseBody } = await handleAnalyzeRoomRequest(body)
+
+    if (wantsEventStream(req)) {
+      const stream = createSseStream(req, res)
+      await streamFindAlternativesRequest(body, (event, data) =>
+        stream.emit(event, data),
+      )
+      return stream.close()
+    }
+
+    const { status, body: responseBody } =
+      await handleFindAlternativesRequest(body)
     return res.status(status).json(responseBody)
   } catch {
+    if (res.headersSent) return res.end()
     return res.status(500).json({
       success: false,
       errorType: 'api_error',
@@ -25,4 +40,5 @@ export const config = {
       sizeLimit: '10mb',
     },
   },
+  maxDuration: 90,
 }

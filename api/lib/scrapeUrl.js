@@ -1,5 +1,10 @@
+import { lookup } from 'node:dns/promises'
+import net from 'node:net'
+
 const TIMEOUT_MS = 12_000
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
+const MAX_REDIRECTS = 3
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 
 const PAGE_HEADERS = {
   'User-Agent':
@@ -128,16 +133,122 @@ function fail(errorType, message) {
   return { success: false, errorType, message }
 }
 
-async function fetchImageAsDataUrl(imageUrl, { referer, signal }) {
-  const response = await fetch(imageUrl, {
-    headers: {
-      'User-Agent': PAGE_HEADERS['User-Agent'],
-      Accept: 'image/avif,image/webp,image/*,*/*;q=0.8',
-      ...(referer ? { Referer: referer } : {}),
-    },
-    signal,
-    redirect: 'follow',
-  })
+function ipv4ToInt(ip) {
+  return ip
+    .split('.')
+    .reduce((total, octet) => (total << 8) + Number(octet), 0) >>> 0
+}
+
+function isPrivateIpv4(ip) {
+  const value = ipv4ToInt(ip)
+  const inBlock = (base, bits) =>
+    value >>> (32 - bits) === ipv4ToInt(base) >>> (32 - bits)
+
+  return (
+    inBlock('0.0.0.0', 8) ||
+    inBlock('10.0.0.0', 8) ||
+    inBlock('100.64.0.0', 10) || // carrier-grade NAT
+    inBlock('127.0.0.0', 8) ||
+    inBlock('169.254.0.0', 16) || // link-local, incl. cloud metadata
+    inBlock('172.16.0.0', 12) ||
+    inBlock('192.0.0.0', 24) ||
+    inBlock('192.168.0.0', 16) ||
+    inBlock('198.18.0.0', 15) ||
+    inBlock('224.0.0.0', 4) || // multicast
+    inBlock('240.0.0.0', 4) // reserved
+  )
+}
+
+function isPrivateIpv6(ip) {
+  const addr = ip.toLowerCase().split('%')[0]
+  if (addr === '::' || addr === '::1') return true
+  const mapped = addr.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)
+  if (mapped) return isPrivateIpv4(mapped[1])
+  return /^f[cd]/.test(addr) || /^fe[89ab]/.test(addr)
+}
+
+/** Anything that is not a routable public address is refused. */
+function isPrivateAddress(ip) {
+  const version = net.isIP(ip)
+  if (version === 4) return isPrivateIpv4(ip)
+  if (version === 6) return isPrivateIpv6(ip)
+  return true
+}
+
+function blockedUrlError() {
+  const error = new Error('Refused to fetch a non-public URL')
+  error.code = 'BLOCKED_URL'
+  return error
+}
+
+/**
+ * Resolve a URL and refuse anything pointing at private or reserved space, so
+ * a user-supplied link cannot be used to probe the host's own network.
+ * Note this validates the address at resolve time; pinning the resolved IP to
+ * the socket would additionally close the DNS-rebinding window.
+ */
+async function resolvePublicUrl(rawUrl) {
+  let parsed
+  try {
+    parsed = new URL(rawUrl)
+  } catch {
+    return null
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+
+  const host = parsed.hostname.replace(/^\[|\]$/g, '')
+  if (net.isIP(host)) return isPrivateAddress(host) ? null : parsed
+
+  let addresses
+  try {
+    addresses = await lookup(host, { all: true })
+  } catch {
+    return null
+  }
+  if (addresses.length === 0) return null
+  if (addresses.some(({ address }) => isPrivateAddress(address))) return null
+  return parsed
+}
+
+/** fetch() that validates the target, and every redirect hop, before connecting. */
+async function safeFetch(rawUrl, options = {}) {
+  let target = rawUrl
+
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const parsed = await resolvePublicUrl(target)
+    if (!parsed) throw blockedUrlError()
+
+    const response = await fetch(parsed.href, {
+      ...options,
+      redirect: 'manual',
+    })
+    if (!REDIRECT_STATUSES.has(response.status)) return response
+
+    const location = response.headers.get('location')
+    if (!location) return response
+    target = resolveUrl(location, parsed.href)
+  }
+
+  throw blockedUrlError()
+}
+
+export async function fetchImageAsDataUrl(imageUrl, { referer, signal } = {}) {
+  let response
+  try {
+    response = await safeFetch(imageUrl, {
+      headers: {
+        'User-Agent': PAGE_HEADERS['User-Agent'],
+        Accept: 'image/avif,image/webp,image/*,*/*;q=0.8',
+        ...(referer ? { Referer: referer } : {}),
+      },
+      signal,
+    })
+  } catch (err) {
+    if (err?.code === 'BLOCKED_URL') {
+      return fail('invalid_url', 'That image link could not be used.')
+    }
+    throw err
+  }
 
   if (!response.ok) {
     return fail(
@@ -192,10 +303,9 @@ export async function scrapeProductImage(url) {
       })
     }
 
-    const pageResponse = await fetch(parsedUrl.href, {
+    const pageResponse = await safeFetch(parsedUrl.href, {
       headers: PAGE_HEADERS,
       signal: controller.signal,
-      redirect: 'follow',
     })
     const html = await pageResponse.text()
 
@@ -238,6 +348,12 @@ export async function scrapeProductImage(url) {
         'That request timed out. Try a direct image link or upload a photo.',
       )
     }
+    if (err?.code === 'BLOCKED_URL') {
+      return fail(
+        'invalid_url',
+        'That link could not be used. Paste a public product or image link.',
+      )
+    }
     return fail(
       'scrape_failed',
       'Could not fetch that link. Try a direct image link or upload a photo.',
@@ -248,7 +364,7 @@ export async function scrapeProductImage(url) {
 }
 
 export async function handleScrapeUrlRequest(body) {
-  const { url } = body
+  const { url } = body ?? {}
 
   if (!url?.trim()) {
     return {

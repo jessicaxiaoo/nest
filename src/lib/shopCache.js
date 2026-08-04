@@ -67,9 +67,21 @@ export function filterProductsByMaxPrice(products, maxPrice) {
   })
 }
 
-/** Build a shopping query from recommendation fields. */
+/**
+ * Build a shopping query from a plan / checklist item.
+ * Prefer the model-authored searchQuery (written for store search);
+ * fall back to concatenating recommendation chips for older plans.
+ * Price stays out of the query — callers pass maxPrice to Serper separately.
+ */
 export function buildShopQuery(item) {
   if (!item) return ''
+
+  const authored =
+    typeof item.searchQuery === 'string' ? item.searchQuery.trim() : ''
+  if (authored) {
+    return authored.replace(/\s+/g, ' ')
+  }
+
   const parts = [
     item.material,
     item.category,

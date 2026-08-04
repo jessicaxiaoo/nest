@@ -2,25 +2,17 @@ import { useState } from 'react'
 import { History, RefreshCw, ScanSearch } from 'lucide-react'
 import { checkCompatibility, scrapeProductUrl } from '../lib/api'
 import { createThumbnail } from '../lib/image'
-import { categoryIcon, formatPrice } from '../lib/itemVisuals'
+import { buildChecklistPayload } from '../lib/checklistItem'
+import { categoryIcon, formatPrice, shortTitle } from '../lib/itemVisuals'
 import Button from './Button'
 import CompatibilityVerdict, {
   summarizeVerdict,
   TONE_ACCENT,
   TONE_STYLES,
 } from './CompatibilityVerdict'
+import FindAlternatives from './FindAlternatives'
 import PhotoUpload from './PhotoUpload'
-
-const MAX_TITLE_WORDS = 6
-
-function shortTitle(value, fallback = 'Furniture piece') {
-  const words = String(value ?? '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-  if (words.length === 0) return fallback
-  return words.slice(0, MAX_TITLE_WORDS).join(' ')
-}
+import { needsAlternatives } from '../../api/lib/verdict.js'
 
 function formatCheckedAt(iso) {
   if (!iso) return ''
@@ -42,6 +34,7 @@ export default function PieceChecker({
   onSaveToChecklist,
   onRemoveFromChecklist,
   onSaveCheck,
+  onUpdateCheck,
   onDeleteCheck,
 }) {
   const history = room.checkHistory ?? []
@@ -61,12 +54,15 @@ export default function PieceChecker({
   const parsedPiecePrice =
     piecePrice !== '' && Number(piecePrice) > 0 ? Number(piecePrice) : null
 
-  const findChecklistMatch = (checkId, description) =>
-    (room.checklist ?? []).find(
+  // Saves store the shortened title as the category, so match on that.
+  const findChecklistMatch = (checkId, description) => {
+    const title = shortTitle(description)
+    return (room.checklist ?? []).find(
       (item) =>
-        item.checkHistoryId === checkId ||
-        (item.source === 'compatibility' && item.category === description),
+        (checkId != null && item.checkHistoryId === checkId) ||
+        (item.source === 'compatibility' && item.category === title),
     )
+  }
 
   const isInChecklist = (checkId, description) =>
     Boolean(findChecklistMatch(checkId, description))
@@ -181,30 +177,24 @@ export default function PieceChecker({
 
     const title = shortTitle(verdict.pieceDescription)
     const price = verdict.piecePrice > 0 ? verdict.piecePrice : 0
-    onSaveToChecklist({
-      category: title,
-      rationale: verdict.overallVerdict,
-      priority: 'Medium',
-      budgetMin: price,
-      budgetMax: price,
-      verdict: { ...verdict, pieceDescription: title },
-      checkHistoryId: activeCheckId ?? undefined,
-      photo: piecePhoto ?? undefined,
-    })
+    onSaveToChecklist(
+      buildChecklistPayload({
+        category: title,
+        rationale: verdict.overallVerdict,
+        price,
+        photo: piecePhoto ?? undefined,
+        sourceKey: activeCheckId || title,
+        verdict: { ...verdict, pieceDescription: title },
+        checkHistoryId: activeCheckId ?? undefined,
+      }),
+    )
     setSaved(true)
   }
 
   function handleRemove() {
     if (!verdict) return
-    const match = findChecklistMatch(
-      activeCheckId,
-      verdict.pieceDescription,
-    )
-    if (match && onRemoveFromChecklist) {
-      onRemoveFromChecklist(match)
-    } else if (onRemoveFromChecklist) {
-      onRemoveFromChecklist({ category: verdict.pieceDescription })
-    }
+    const match = findChecklistMatch(activeCheckId, verdict.pieceDescription)
+    if (match) onRemoveFromChecklist?.(match)
     setSaved(false)
   }
 
@@ -257,6 +247,71 @@ export default function PieceChecker({
     }
   }
 
+  function alternativeKey(alternative) {
+    return (
+      alternative?.product?.link ||
+      alternative?.productId ||
+      alternative?.verdict?.pieceDescription
+    )
+  }
+
+  function handleSaveAlternative(alternative) {
+    if (!onSaveToChecklist || !alternative?.verdict) return
+    const title = shortTitle(
+      alternative.verdict.pieceDescription || alternative.product?.title,
+    )
+    const price =
+      alternative.verdict.piecePrice > 0
+        ? alternative.verdict.piecePrice
+        : alternative.product?.priceValue > 0
+          ? alternative.product.priceValue
+          : 0
+    onSaveToChecklist(
+      buildChecklistPayload({
+        category: title,
+        rationale: alternative.why || alternative.verdict.overallVerdict,
+        price,
+        product: alternative.product
+          ? {
+              title: alternative.product.title || title,
+              price: alternative.product.price,
+              priceValue: alternative.product.priceValue,
+              source: alternative.product.source,
+              link: alternative.product.link,
+              thumbnail: alternative.product.thumbnail,
+            }
+          : null,
+        sourceKey: alternativeKey(alternative),
+        verdict: { ...alternative.verdict, pieceDescription: title },
+      }),
+    )
+  }
+
+  function handleRemoveAlternative(alternative) {
+    if (!onRemoveFromChecklist || !alternative?.verdict) return
+    const title = shortTitle(
+      alternative.verdict.pieceDescription || alternative.product?.title,
+    )
+    const match = (room.checklist ?? []).find(
+      (item) =>
+        item.sourceKey === alternativeKey(alternative) ||
+        (item.source === 'compatibility' && item.category === title),
+    )
+    if (match) onRemoveFromChecklist(match)
+    else onRemoveFromChecklist({ category: title })
+  }
+
+  function isAlternativeSaved(alternative) {
+    const title = shortTitle(
+      alternative?.verdict?.pieceDescription || alternative?.product?.title,
+    )
+    return (room.checklist ?? []).some(
+      (item) =>
+        item.sourceKey === alternativeKey(alternative) ||
+        (item.source === 'compatibility' && item.category === title),
+    )
+  }
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-gray-100">
@@ -286,11 +341,37 @@ export default function PieceChecker({
 
       <main className="mx-auto max-w-3xl space-y-8 px-6 py-10">
         <div>
-          <h1 className="type-page-title mb-2">Check a piece</h1>
+          <h1 className="type-page-title mb-2">Before you buy</h1>
           <p className="text-sm text-gray-400">
-            See if a furniture piece works with your {room.name.toLowerCase()}{' '}
+            Check a piece against your {room.name.toLowerCase()} — style, scale,
+            color, and budget
           </p>
         </div>
+
+        {(room.photo || room.plans?.[0]?.styleThesis) && (
+          <div className="flex gap-3 rounded-xl bg-nest-muted/40 px-3.5 py-3 ring-1 ring-nest/10">
+            {room.photo ? (
+              <img
+                src={room.photo}
+                alt=""
+                className="h-14 w-14 shrink-0 rounded-lg object-cover ring-1 ring-gray-200/60"
+              />
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="type-label mb-0.5 text-nest/50">Checking against</p>
+              <p className="text-sm font-medium text-gray-900">{room.name}</p>
+              {room.plans?.[0]?.styleThesis ? (
+                <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-gray-500">
+                  {room.plans[0].styleThesis}
+                </p>
+              ) : (
+                <p className="mt-0.5 text-xs text-gray-400">
+                  Your room photo and style preferences
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {!verdict && (
           <>
@@ -300,7 +381,7 @@ export default function PieceChecker({
                   <span className="flex h-8 w-8 items-center justify-center rounded-md bg-nest-muted text-nest">
                     <ScanSearch size={16} strokeWidth={1.75} aria-hidden="true" />
                   </span>
-                  Add a piece to check
+                  Add a piece
                 </h3>
                 <p className="mt-1 pl-10 text-xs text-gray-400">
                   Upload a photo or paste a product link
@@ -452,12 +533,12 @@ export default function PieceChecker({
                       aria-hidden="true"
                     />
                   )}
-                  {loading ? 'Checking compatibility…' : 'Check compatibility'}
+                  {loading ? 'Checking…' : 'Check this piece'}
                 </Button>
 
                 {loading && (
                   <p className="mt-3 text-center text-xs text-gray-400">
-                    Comparing against your room profile
+                    Against your room’s direction, scale, and budget
                   </p>
                 )}
               </div>
@@ -582,6 +663,33 @@ export default function PieceChecker({
                   Check another
                 </button>
               }
+            />
+
+            <FindAlternatives
+              room={room}
+              verdict={verdict}
+              piecePhoto={piecePhoto}
+              checkId={activeCheckId}
+              initialResult={
+                history.find((entry) => entry.id === activeCheckId)
+                  ?.alternativesResult
+              }
+              enabled={needsAlternatives(verdict)}
+              onPersistResult={
+                activeCheckId && onUpdateCheck
+                  ? (result) =>
+                      onUpdateCheck(activeCheckId, {
+                        alternativesResult: result,
+                      })
+                  : undefined
+              }
+              onSaveAlternative={
+                onSaveToChecklist ? handleSaveAlternative : undefined
+              }
+              onRemoveAlternative={
+                onRemoveFromChecklist ? handleRemoveAlternative : undefined
+              }
+              isAlternativeSaved={isAlternativeSaved}
             />
 
             <button

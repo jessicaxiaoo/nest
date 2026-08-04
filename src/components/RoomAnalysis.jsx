@@ -1,9 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Building2, Sofa, Sun } from 'lucide-react'
-
-// Minor clutter items get demoted to a collapsed "misc" sub-list
-const MINOR_ITEM_PATTERN =
-  /\b(bins?|baskets?|hampers?|box(es)?|clutter|laundry|cords?|cables?|piles?|trash|wastebasket|garbage|misc(ellaneous)?|toys)\b/i
+import { MINOR_ITEM_PATTERN } from '../lib/roomOccupancy'
 
 function AnalysisBullet({ text, muted = false }) {
   const [expanded, setExpanded] = useState(false)
@@ -88,10 +85,14 @@ function AnalysisCard({ label, icon: Icon, points, splitMinorItems = false }) {
 }
 
 function toPoints(value) {
-  return Array.isArray(value) ? value : [value]
+  if (Array.isArray(value)) return value.map(String).filter(Boolean)
+  if (value != null && value !== '') return [String(value)]
+  return []
 }
 
 export default function RoomAnalysis({ analysis }) {
+  if (!analysis) return null
+
   return (
     <div className="grid items-start gap-4 sm:grid-cols-3 sm:gap-2">
       <AnalysisCard

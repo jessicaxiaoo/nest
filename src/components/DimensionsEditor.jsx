@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react'
 import { Ruler } from 'lucide-react'
 import Button from './Button'
 
-export default function DimensionsEditor({ dimensions, onSave, regenerating = false }) {
+export default function DimensionsEditor({
+  dimensions,
+  onSave,
+  regenerating = false,
+  readOnly = false,
+}) {
   const [length, setLength] = useState(dimensions?.length ?? '')
   const [width, setWidth] = useState(dimensions?.width ?? '')
   const [editing, setEditing] = useState(false)
@@ -10,7 +15,8 @@ export default function DimensionsEditor({ dimensions, onSave, regenerating = fa
   useEffect(() => {
     setLength(dimensions?.length ?? '')
     setWidth(dimensions?.width ?? '')
-  }, [dimensions?.length, dimensions?.width])
+    if (readOnly) setEditing(false)
+  }, [dimensions?.length, dimensions?.width, readOnly])
 
   function handleSave() {
     onSave({
@@ -37,7 +43,7 @@ export default function DimensionsEditor({ dimensions, onSave, regenerating = fa
           </span>
           Room dimensions
         </p>
-        {!editing && (
+        {!editing && !readOnly && (
           <button
             type="button"
             onClick={() => setEditing(true)}

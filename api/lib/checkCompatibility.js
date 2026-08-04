@@ -3,6 +3,13 @@ import {
   callClaudeWithTool,
   parsePhotoData,
 } from './utils.js'
+import {
+  axisSchema,
+  budgetAxis,
+  checkBudgetCeiling,
+  needsAlternatives,
+  normalizeAxis,
+} from './verdict.js'
 
 const COMPATIBILITY_TOOL = {
   name: 'submit_compatibility',
@@ -20,50 +27,9 @@ const COMPATIBILITY_TOOL = {
         description:
           'Short title for the piece — max 6 words (e.g. "blush lounge chair" or "oak side table"). Category first, then 1–2 traits. No long product copy.',
       },
-      style: {
-        type: 'object',
-        properties: {
-          signal: {
-            type: 'string',
-            enum: ['compatible', 'minor_concern', 'clashes'],
-          },
-          reasoning: { type: 'string' },
-        },
-        required: ['signal', 'reasoning'],
-      },
-      scale: {
-        type: 'object',
-        properties: {
-          signal: {
-            type: 'string',
-            enum: ['appropriate', 'might_be_too_large', 'wrong_size'],
-          },
-          reasoning: { type: 'string' },
-        },
-        required: ['signal', 'reasoning'],
-      },
-      color: {
-        type: 'object',
-        properties: {
-          signal: {
-            type: 'string',
-            enum: ['harmonious', 'neutral', 'clashes'],
-          },
-          reasoning: { type: 'string' },
-        },
-        required: ['signal', 'reasoning'],
-      },
-      budget: {
-        type: 'object',
-        properties: {
-          signal: {
-            type: 'string',
-            enum: ['fits', 'stretch', 'over_budget', 'unknown'],
-          },
-          reasoning: { type: 'string' },
-        },
-        required: ['signal', 'reasoning'],
-      },
+      style: axisSchema('style'),
+      scale: axisSchema('scale'),
+      color: axisSchema('color'),
       overallVerdict: {
         type: 'string',
         description: '2-3 warm sentences summarizing the compatibility assessment',
@@ -73,6 +39,11 @@ const COMPATIBILITY_TOOL = {
         description:
           'If any axis is concerning, describe what characteristics to look for instead. No product names or links. Omit or leave empty when the piece works well.',
       },
+      searchQuery: {
+        type: 'string',
+        description:
+          'If any axis is concerning, a short shopping search query for a better piece — category plus 2-3 concrete attributes, e.g. "cream boucle accent chair 28 inch". No brand names, no price, under 10 words. Omit when the piece works well.',
+      },
     },
     required: [
       'confident',
@@ -80,7 +51,6 @@ const COMPATIBILITY_TOOL = {
       'style',
       'scale',
       'color',
-      'budget',
       'overallVerdict',
     ],
   },
@@ -88,7 +58,7 @@ const COMPATIBILITY_TOOL = {
 
 const SYSTEM_PROMPT = `You are a warm, approachable interior design advisor helping someone decide whether a furniture piece will work in their room — not a stiff professional report.
 
-You will receive a piece photo, optional room photo, and a structured room context (analysis, style direction, dimensions, plan gaps). Ground every judgment in that context, then call submit_compatibility.
+You will receive a piece photo, optional room photo, and a structured room context (analysis, style direction, dimensions, plan gaps, and pieces already on their checklist). Ground every judgment in that context, then call submit_compatibility.
 
 Tone:
 - Speak directly to them as "you" / "your" — never "the user", "the homeowner", or "they".
@@ -97,24 +67,17 @@ Tone:
 
 Rules:
 - Prefer the structured room analysis and style thesis over inventing new facts from the room photo. Use the room photo only to verify visual details (color, finish, how busy the space looks).
-- Account for existingPieces — do not ignore furniture they already own when judging style, scale, and color.
+- Account for existingPieces in the room analysis — do not ignore furniture they already own when judging style, scale, and color.
+- committedPieces are items already saved or bought for this room (not necessarily visible in the photo). Fold them into style, scale, and color — flag when the new piece fights their finishes, palette, or bulk. Prefer complements over near-duplicates of the same category unless the room clearly needs multiples.
 - If planGaps are provided, note whether this piece fills a real gap or duplicates something they already planned for.
 - pieceDescription must be at most 6 words — a short title like "blush lounge chair", not a full product description.
-- Budget axis: when a piece price is provided, compare it to the room's total budget and any matching planGaps budget ranges. Use "fits" if it leaves room for other priorities, "stretch" if it's a big slice but still plausible, "over_budget" if it crowds out the rest of the plan or exceeds the room budget. When no piece price is given, set budget.signal to "unknown" and say they can add a price for a budget check.
-- Never name specific products or brands. No purchase links.
+- Do NOT assess budget. Price fit is computed separately from the numbers — omit any budget judgment.
+- Never name specific products or brands. No purchase links. You may refer to committed pieces by category (e.g. "your walnut console").
 - Use room dimensions in scale reasoning when they are provided.
 - If you cannot make a confident assessment, set confident to false rather than fabricating a verdict.
-- alternativeSuggestion should be descriptive only (e.g. "look for a neutral-toned sectional under 90 inches with clean lines"). Set it to null when style, scale, color, and budget are all fine (budget unknown does not require an alternative).
+- alternativeSuggestion should be descriptive only (e.g. "look for a neutral-toned sectional under 90 inches with clean lines"). Set it to null when style, scale, and color are all fine.
+- Whenever you write an alternativeSuggestion, also set searchQuery to how you would actually type that into a shopping site — the same guidance compressed into a few keywords, not a sentence.
 - Use ASCII quotes only in all string fields.`
-
-const STYLE_SIGNALS = new Set(['compatible', 'minor_concern', 'clashes'])
-const SCALE_SIGNALS = new Set([
-  'appropriate',
-  'might_be_too_large',
-  'wrong_size',
-])
-const COLOR_SIGNALS = new Set(['harmonious', 'neutral', 'clashes'])
-const BUDGET_SIGNALS = new Set(['fits', 'stretch', 'over_budget', 'unknown'])
 
 function formatDimensions(dimensions) {
   if (!dimensions?.length || !dimensions?.width) {
@@ -126,29 +89,9 @@ function formatDimensions(dimensions) {
 
 function formatPiecePrice(piecePrice) {
   if (piecePrice == null || !(Number(piecePrice) > 0)) {
-    return 'Piece price: not provided — set budget.signal to "unknown".'
+    return 'Piece price: not provided (budget is computed separately).'
   }
-  return `Piece price (user-entered): $${Number(piecePrice)}`
-}
-
-function normalizeAxis(axis, allowed, fallbackSignal) {
-  if (!axis || typeof axis !== 'object') {
-    return { signal: fallbackSignal, reasoning: '' }
-  }
-  return {
-    signal: allowed.has(axis.signal) ? axis.signal : fallbackSignal,
-    reasoning: typeof axis.reasoning === 'string' ? axis.reasoning : '',
-  }
-}
-
-function needsAlternative(style, scale, color, budget) {
-  return (
-    style.signal !== 'compatible' ||
-    scale.signal !== 'appropriate' ||
-    color.signal !== 'harmonious' ||
-    budget.signal === 'over_budget' ||
-    budget.signal === 'stretch'
-  )
+  return `Piece price (user-entered): $${Number(piecePrice)} (budget is computed separately — do not assess it).`
 }
 
 const MAX_PIECE_DESCRIPTION_WORDS = 6
@@ -162,35 +105,26 @@ function normalizePieceDescription(value) {
   return words.slice(0, MAX_PIECE_DESCRIPTION_WORDS).join(' ')
 }
 
-function normalizeVerdict(parsed, { piecePrice } = {}) {
-  const style = normalizeAxis(parsed.style, STYLE_SIGNALS, 'minor_concern')
-  const scale = normalizeAxis(parsed.scale, SCALE_SIGNALS, 'might_be_too_large')
-  const color = normalizeAxis(parsed.color, COLOR_SIGNALS, 'neutral')
+function trimmedOrNull(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+function normalizeVerdict(parsed, { piecePrice, ceiling, roomBudget } = {}) {
+  const style = normalizeAxis('style', parsed.style)
+  const scale = normalizeAxis('scale', parsed.scale)
+  const color = normalizeAxis('color', parsed.color)
   const hasPrice = piecePrice != null && Number(piecePrice) > 0
-  const budget = normalizeAxis(
-    parsed.budget,
-    BUDGET_SIGNALS,
-    hasPrice ? 'stretch' : 'unknown',
-  )
+  const budget = budgetAxis({
+    price: hasPrice ? Number(piecePrice) : null,
+    ceiling,
+    roomBudget,
+  })
   if (!hasPrice) {
-    budget.signal = 'unknown'
-    if (!budget.reasoning) {
-      budget.reasoning =
-        'Add a price to see how this piece fits your room budget.'
-    }
+    budget.reasoning =
+      'Add a price to see how this piece fits your room budget.'
   }
 
-  let alternativeSuggestion = parsed.alternativeSuggestion ?? null
-  if (typeof alternativeSuggestion === 'string') {
-    alternativeSuggestion = alternativeSuggestion.trim() || null
-  } else {
-    alternativeSuggestion = null
-  }
-  if (!needsAlternative(style, scale, color, budget)) {
-    alternativeSuggestion = null
-  }
-
-  return {
+  const verdict = {
     pieceDescription: normalizePieceDescription(parsed.pieceDescription),
     style,
     scale,
@@ -198,8 +132,62 @@ function normalizeVerdict(parsed, { piecePrice } = {}) {
     budget,
     piecePrice: hasPrice ? Number(piecePrice) : null,
     overallVerdict: parsed.overallVerdict ?? '',
-    alternativeSuggestion,
+    alternativeSuggestion: trimmedOrNull(parsed.alternativeSuggestion),
+    searchQuery: trimmedOrNull(parsed.searchQuery),
   }
+
+  if (!needsAlternatives(verdict)) {
+    verdict.alternativeSuggestion = null
+    verdict.searchQuery = null
+  }
+
+  return verdict
+}
+
+const MAX_COMMITTED_PIECES = 12
+
+/** Defensive normalize of checklist snapshots sent by the client. */
+function normalizeCommittedPieces(raw) {
+  if (!Array.isArray(raw) || raw.length === 0) return []
+
+  return raw.slice(0, MAX_COMMITTED_PIECES).map((item) => {
+    const price = Number(item?.price)
+    const colors = Array.isArray(item?.colors)
+      ? item.colors.filter((c) => typeof c === 'string').slice(0, 4)
+      : []
+    const category =
+      typeof item?.category === 'string' && item.category.trim()
+        ? item.category.trim()
+        : 'Saved piece'
+    const title =
+      typeof item?.title === 'string' && item.title.trim()
+        ? item.title.trim()
+        : null
+
+    return {
+      category,
+      title: title && title !== category ? title : null,
+      status:
+        item?.status === 'bought' ||
+        item?.status === 'purchased' ||
+        item?.status === 'placed'
+          ? 'bought'
+          : 'saved',
+      price: Number.isFinite(price) && price > 0 ? price : null,
+      styleName:
+        typeof item?.styleName === 'string' && item.styleName.trim()
+          ? item.styleName.trim()
+          : null,
+      colors: colors.length > 0 ? colors : null,
+    }
+  })
+}
+
+function committedSpend(pieces) {
+  return pieces.reduce((sum, piece) => {
+    const price = Number(piece?.price)
+    return sum + (Number.isFinite(price) && price > 0 ? price : 0)
+  }, 0)
 }
 
 function buildRoomContext({ room }) {
@@ -221,15 +209,34 @@ function buildRoomContext({ room }) {
     }))
   }
 
+  const committedPieces = normalizeCommittedPieces(
+    room.committedPieces ?? room.checklist,
+  )
+  const spent = committedSpend(committedPieces)
+  const roomBudget = Number(room.budget)
+  const budgetRemaining =
+    Number.isFinite(roomBudget) && roomBudget > 0
+      ? Math.max(Math.round(roomBudget - spent), 0)
+      : null
+
   return {
     roomAnalysis,
     styleThesis,
     planGaps,
     dimensions: room.dimensions ?? latestPlan?.dimensions ?? null,
+    committedPieces,
+    checklistSpent: spent > 0 ? Math.round(spent) : 0,
+    budgetRemaining,
   }
 }
 
-export async function checkCompatibility({ room, piecePhoto, piecePrice }) {
+async function checkCompatibility({
+  room,
+  piecePhoto,
+  piecePrice,
+  includeRoomPhoto,
+  timeoutMs,
+}) {
   let roomPhoto
   let piece
 
@@ -244,7 +251,14 @@ export async function checkCompatibility({ room, piecePhoto, piecePrice }) {
     }
   }
 
-  if (room.photo) {
+  const context = buildRoomContext({ room })
+  const hasAnalysis = Boolean(context.roomAnalysis)
+  // Structured analysis already captures the room; skip the second image unless
+  // the caller forces it or there is nothing else to ground the check.
+  const shouldIncludeRoomPhoto =
+    includeRoomPhoto != null ? includeRoomPhoto : !hasAnalysis
+
+  if (shouldIncludeRoomPhoto && room.photo) {
     try {
       roomPhoto = parsePhotoData(room.photo)
     } catch {
@@ -252,14 +266,26 @@ export async function checkCompatibility({ room, piecePhoto, piecePrice }) {
     }
   }
 
-  const context = buildRoomContext({ room })
-  const hasAnalysis = Boolean(context.roomAnalysis)
+  const hasCommitted = context.committedPieces.length > 0
   const normalizedPrice =
     piecePrice != null && Number(piecePrice) > 0 ? Number(piecePrice) : null
+  const roomBudget = Number(room.budget)
+
+  const budgetLines = [
+    `Total room budget: $${room.budget}`,
+    hasCommitted
+      ? `Already allocated on checklist: $${context.checklistSpent}`
+      : null,
+    context.budgetRemaining != null && hasCommitted
+      ? `Remaining room budget: $${context.budgetRemaining}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join('\n')
 
   const userPrompt = `Room name: ${room.name}
 Style preferences: ${room.style}
-Total room budget: $${room.budget}
+${budgetLines}
 ${formatPiecePrice(normalizedPrice)}
 ${formatDimensions(context.dimensions)}
 
@@ -269,14 +295,16 @@ ${JSON.stringify(
     roomAnalysis: context.roomAnalysis,
     styleThesis: context.styleThesis,
     planGaps: context.planGaps,
+    committedPieces: context.committedPieces,
   },
   null,
   2,
 )}
 
 ${hasAnalysis ? 'A structured room analysis is provided above.' : 'No structured room analysis was available — rely more carefully on the room photo if present.'}
+${hasCommitted ? 'committedPieces lists furniture already saved for this room — judge the new piece against those too, not only the empty room.' : 'No checklist pieces yet for this room.'}
 ${roomPhoto ? 'First image is the room. Second image is the furniture piece to evaluate.' : 'The image is the furniture piece to evaluate against the room context above.'}
-Assess whether this piece works in this room — including budget fit when a piece price is provided.`
+Assess style, scale, and color only — do not assess budget.`
 
   const content = []
   if (roomPhoto) {
@@ -308,6 +336,8 @@ Assess whether this piece works in this room — including budget fit when a pie
       maxTokens: 2048,
       temperature: 0.3,
       content,
+      cacheSystem: true,
+      ...(timeoutMs != null ? { timeoutMs } : {}),
     })
 
     if (!parsed.confident) {
@@ -320,9 +350,21 @@ Assess whether this piece works in this room — including budget fit when a pie
       }
     }
 
+    const pieceDescription = normalizePieceDescription(parsed.pieceDescription)
+    const ceiling = checkBudgetCeiling({
+      roomBudget,
+      budgetRemaining: context.budgetRemaining,
+      planGaps: context.planGaps,
+      pieceDescription,
+    })
+
     return {
       success: true,
-      verdict: normalizeVerdict(parsed, { piecePrice: normalizedPrice }),
+      verdict: normalizeVerdict(parsed, {
+        piecePrice: normalizedPrice,
+        ceiling,
+        roomBudget: Number.isFinite(roomBudget) && roomBudget > 0 ? roomBudget : null,
+      }),
     }
   } catch (err) {
     if (err.code === 'TIMEOUT') {
@@ -346,7 +388,7 @@ Assess whether this piece works in this room — including budget fit when a pie
 }
 
 export async function handleCheckCompatibilityRequest(body) {
-  const { room, piecePhoto, piecePrice } = body
+  const { room, piecePhoto, piecePrice } = body ?? {}
 
   const hasRoomContext =
     Boolean(room?.photo) ||

@@ -1,13 +1,10 @@
 import { useState } from 'react'
 import {
-  Check,
   ChevronDown,
   DollarSign,
   MapPin,
-  Plus,
   Ruler,
   Sparkles,
-  X,
 } from 'lucide-react'
 import {
   PRIORITY_ACCENT,
@@ -45,36 +42,13 @@ function PropRow({ icon: Icon, label, children }) {
   )
 }
 
-function SaveButton({ saved, onSave, onRemove, item }) {
-  if (saved) {
-    return (
-      <button
-        type="button"
-        onClick={() => onRemove(item)}
-        title="Remove from checklist"
-        className="group inline-flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-nest transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-nest focus-visible:ring-offset-1 sm:w-auto"
-      >
-        <Check size={14} strokeWidth={2} aria-hidden="true" className="group-hover:hidden" />
-        <X size={14} strokeWidth={2} aria-hidden="true" className="hidden group-hover:inline" />
-        <span className="group-hover:hidden">Saved</span>
-        <span className="hidden group-hover:inline">Undo</span>
-      </button>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSave(item)}
-      className="inline-flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-nest transition-colors hover:bg-nest-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-nest focus-visible:ring-offset-1 sm:w-auto"
-    >
-      <Plus size={14} strokeWidth={2} aria-hidden="true" />
-      Save to checklist
-    </button>
-  )
-}
-
-export default function PlanItem({ item, index, saved, onSave, onRemove }) {
+export default function PlanItem({
+  item,
+  index,
+  isProductSaved,
+  onSaveProduct,
+  onRemoveProduct,
+}) {
   const [expanded, setExpanded] = useState(false)
   const dimensions = formatDimensions(item.estimatedDimensions)
   const Icon = categoryIcon(item.category)
@@ -200,11 +174,12 @@ export default function PlanItem({ item, index, saved, onSave, onRemove }) {
         )}
 
         <div className="sm:pl-[4.75rem]">
-          <ShopProductStrip item={item} />
-
-          <div className="mt-2 flex justify-end border-t border-gray-50 pt-2.5">
-            <SaveButton saved={saved} onSave={onSave} onRemove={onRemove} item={item} />
-          </div>
+          <ShopProductStrip
+            item={item}
+            isProductSaved={isProductSaved}
+            onSaveProduct={onSaveProduct}
+            onRemoveProduct={onRemoveProduct}
+          />
         </div>
       </div>
     </article>

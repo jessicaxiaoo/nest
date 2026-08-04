@@ -1,8 +1,8 @@
 import {
   apiErrorResponse,
   callClaudeWithTool,
+  MODEL_TEXT,
   parsePhotoData,
-  readJsonBody,
 } from './utils.js'
 
 const ROOM_ANALYSIS_TOOL = {
@@ -66,6 +66,11 @@ const RECOMMENDATIONS_TOOL = {
               description:
                 'Where to place this item in the room, grounded in the room analysis',
             },
+            searchQuery: {
+              type: 'string',
+              description:
+                'Short shopping search query for this item — category plus 2-3 concrete attributes, e.g. "cream boucle accent chair 28 inch". No brand names, no price, under 10 words.',
+            },
             budgetMin: { type: 'number' },
             budgetMax: { type: 'number' },
             priceOptions: {
@@ -89,6 +94,7 @@ const RECOMMENDATIONS_TOOL = {
             'material',
             'texture',
             'placement',
+            'searchQuery',
             'budgetMin',
             'budgetMax',
           ],
@@ -136,6 +142,7 @@ Rules:
 - Where possible, give each item two priceOptions — tier "Budget" and tier "Upgrade" — each with a price and a one-line differentiator explaining what the extra money buys. Prices must fall within the item's budgetMin-budgetMax range or close to it. Omit priceOptions only when a meaningful budget/upgrade split doesn't exist.
 - For each item, set estimatedDimensions as plain text (e.g. "8 ft x 10 ft" or "72-84 in wide"). Use ASCII quotes only in all string fields.
 - For each item, set placement to 1 short sentence (or under ~20 words) telling you where to put it. Ground placement in the room analysis (e.g. existing furniture, windows, doors, wall orientation, traffic paths). Be concrete and friendly (e.g. "Try centering it under your window on the long wall, with a clear path to the door") — not vague ("somewhere in the room").
+- For each item, set searchQuery to how you would actually type this into a shopping site — category plus 2–3 concrete shoppable attributes (color/material, form, size cue when useful). Examples: "ivory linen sheer curtains 84 inch", "light oak round coffee table 36 inch", "nubby cream boucle accent chair". No brand names, no price, no full sentences — under 10 words. Do not paste styleName jargon alone (e.g. avoid bare "Japandi"); prefer words a store listing would use.
 - Budget ranges should fit within their total room budget, allocated across all items.
 - Use the room dimensions from the analysis when sizing items (estimatedDimensions). If dimensions are provided, treat them as the working room size.
 - Be honest about uncertainty rather than guessing.`
@@ -173,6 +180,14 @@ function normalizeColors(colors) {
     .slice(0, 3)
 }
 
+function normalizeSearchQuery(value) {
+  if (typeof value !== 'string') return null
+  const cleaned = value.replace(/\s+/g, ' ').trim()
+  if (!cleaned) return null
+  // Keep shop queries short; Serper degrades on long prose.
+  return cleaned.split(/\s+/).slice(0, 12).join(' ')
+}
+
 function normalizePlanItem(item) {
   return {
     id: crypto.randomUUID(),
@@ -188,6 +203,7 @@ function normalizePlanItem(item) {
       typeof item.placement === 'string' && item.placement.trim()
         ? item.placement.trim()
         : null,
+    searchQuery: normalizeSearchQuery(item.searchQuery),
     budgetMin: Number(item.budgetMin) || 0,
     budgetMax: Number(item.budgetMax) || 0,
     priceOptions: normalizePriceOptions(item.priceOptions),
@@ -257,7 +273,7 @@ function mapClaudeError(err, label) {
 }
 
 /** Call A — observe the photo only. */
-export async function analyzeRoom({ name, photo }) {
+async function analyzeRoom({ name, photo }) {
   let mediaType
   let data
 
@@ -280,8 +296,10 @@ Observe this room photo. Return only architecture, lighting, existing pieces, ph
     const parsed = await callClaudeWithTool({
       system: ANALYSIS_SYSTEM_PROMPT,
       tool: ROOM_ANALYSIS_TOOL,
+      model: MODEL_TEXT,
       maxTokens: 4096,
       temperature: 0.2,
+      cacheSystem: true,
       content: [
         {
           type: 'image',
@@ -315,7 +333,7 @@ Observe this room photo. Return only architecture, lighting, existing pieces, ph
 }
 
 /** Call B — recommend from cached analysis JSON (no photo). */
-export async function generateRecommendations({
+async function generateRecommendations({
   name,
   style,
   budget,
@@ -349,45 +367,31 @@ Create a prioritized furnishing plan that complements what is already in the roo
     const parsed = await callClaudeWithTool({
       system: RECOMMENDATIONS_SYSTEM_PROMPT,
       tool: RECOMMENDATIONS_TOOL,
+      model: MODEL_TEXT,
       maxTokens: 8192,
       temperature: 0.6,
+      cacheSystem: true,
       content: [{ type: 'text', text: userPrompt }],
     })
+
+    const items = (parsed.items ?? []).map(normalizePlanItem)
+    if (items.length === 0) {
+      return {
+        success: false,
+        errorType: 'parse_error',
+        message: 'Something went wrong on our end — try again in a moment.',
+      }
+    }
 
     return {
       success: true,
       recommendations: {
         styleThesis: parsed.styleThesis ?? null,
-        items: (parsed.items ?? []).map(normalizePlanItem),
+        items,
       },
     }
   } catch (err) {
     return mapClaudeError(err, 'generateRecommendations')
-  }
-}
-
-/** Full plan = analysis + recommendations (used by legacy /api/generate-plan). */
-export async function generateRoomPlan({ name, style, budget, photo }) {
-  const analysisResult = await analyzeRoom({ name, photo })
-  if (!analysisResult.success) return analysisResult
-
-  const recsResult = await generateRecommendations({
-    name,
-    style,
-    budget,
-    analysis: analysisResult.analysis,
-  })
-  if (!recsResult.success) return recsResult
-
-  return {
-    success: true,
-    plan: {
-      roomAnalysis: analysisResult.analysis.roomAnalysis,
-      styleThesis: recsResult.recommendations.styleThesis,
-      dimensions: analysisResult.analysis.dimensions,
-      items: recsResult.recommendations.items,
-    },
-    analysis: analysisResult.analysis,
   }
 }
 
@@ -419,8 +423,15 @@ export async function handleAnalyzeRoomRequest(body) {
 
 export async function handleRecommendItemsRequest(body) {
   const { name, style, budget, analysis } = body ?? {}
+  const budgetNum = Number(budget)
 
-  if (!name?.trim() || !style?.trim() || budget == null || budget === '' || !analysis) {
+  if (
+    !name?.trim() ||
+    !style?.trim() ||
+    !Number.isFinite(budgetNum) ||
+    budgetNum < 0 ||
+    !analysis
+  ) {
     return {
       status: 400,
       body: {
@@ -436,7 +447,7 @@ export async function handleRecommendItemsRequest(body) {
     const result = await generateRecommendations({
       name: name.trim(),
       style: style.trim(),
-      budget: Number(budget),
+      budget: budgetNum,
       analysis,
     })
     return { status: result.success ? 200 : 422, body: result }
@@ -445,39 +456,3 @@ export async function handleRecommendItemsRequest(body) {
     return apiErrorResponse()
   }
 }
-
-export async function handleGeneratePlanRequest(body) {
-  const { name, style, budget, photo } = body
-
-  if (
-    !name?.trim() ||
-    !style?.trim() ||
-    budget == null ||
-    budget === '' ||
-    !photo
-  ) {
-    return {
-      status: 400,
-      body: {
-        success: false,
-        errorType: 'validation',
-        message: 'Missing room details. Make sure the room has a name, style, budget, and photo.',
-      },
-    }
-  }
-
-  try {
-    const result = await generateRoomPlan({
-      name: name.trim(),
-      style: style.trim(),
-      budget: Number(budget),
-      photo,
-    })
-    return { status: result.success ? 200 : 422, body: result }
-  } catch (err) {
-    console.error('[handleGeneratePlanRequest]', err)
-    return apiErrorResponse()
-  }
-}
-
-export { readJsonBody }

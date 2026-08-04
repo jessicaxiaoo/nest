@@ -1,19 +1,20 @@
-import { useEffect, useState } from 'react'
-import { CheckSquare, RefreshCw, ScanSearch, Wallet } from 'lucide-react'
-import Button from './Button'
+import { useEffect, useRef, useState } from 'react'
+import {
+  CheckSquare,
+  Compass,
+  RefreshCw,
+  ScanSearch,
+  Wallet,
+} from 'lucide-react'
 import EditPenButton, { EditActions } from './EditPenButton'
 import PhotoUpload from './PhotoUpload'
 import RoomPlan from './RoomPlan'
-import { generatePlan } from '../lib/api'
+import { analyzeRoomPhoto, generatePlan } from '../lib/api'
+import { checklistBudgetSummary } from '../lib/checklistItem'
+import { formatPrice } from '../lib/itemVisuals'
+import { mergeStep } from '../lib/progressSteps'
+import { isEffectivelyEmptyRoom } from '../lib/roomOccupancy'
 import { clearCachedRoomAnalysis } from '../lib/roomAnalysisCache'
-
-function formatBudget(amount) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
 
 export default function RoomDetail({
   room,
@@ -23,10 +24,10 @@ export default function RoomDetail({
   onCheckPiece,
   onViewChecklist,
   onPlanGenerated,
+  onUpdateAnalysis,
   onUpdateDimensions,
   onSaveToChecklist,
   onRemoveFromChecklist,
-  isInChecklist,
 }) {
   const [editingName, setEditingName] = useState(false)
   const [editingStyle, setEditingStyle] = useState(false)
@@ -35,11 +36,37 @@ export default function RoomDetail({
   const [photoDraft, setPhotoDraft] = useState(room.photo)
   const [reanalyzing, setReanalyzing] = useState(false)
   const [reanalyzeError, setReanalyzeError] = useState(null)
-  const [refreshingForBudget, setRefreshingForBudget] = useState(false)
+  const [refreshingField, setRefreshingField] = useState(null) // 'budget' | 'style'
+  const [progressSteps, setProgressSteps] = useState([])
 
   const [name, setName] = useState(room.name)
   const [style, setStyle] = useState(room.style)
   const [budget, setBudget] = useState(String(room.budget))
+  const [viewingPlanId, setViewingPlanId] = useState(null)
+  const latestPlan = room.plans[0] ?? null
+  const hasPlan = Boolean(latestPlan)
+  const viewingPlan =
+    viewingPlanId != null
+      ? (room.plans.find((plan) => plan.id === viewingPlanId) ?? null)
+      : null
+  const displayPlan = viewingPlan ?? latestPlan
+  const viewingHistory = Boolean(viewingPlan && viewingPlan.id !== latestPlan?.id)
+  const checkCount = (room.checkHistory ?? []).length
+  const isEmptyRoom = isEffectivelyEmptyRoom(latestPlan?.roomAnalysis)
+  // Empty rooms need the plan first; checker becomes hero once furnished
+  // or after they've started checking candidates.
+  const checkerAsHero = hasPlan && (!isEmptyRoom || checkCount > 0)
+  const refreshAbortRef = useRef(null)
+
+  const checklistLabel = (() => {
+    const count = room.checklist.length
+    if (count === 0) return 'Saved pieces'
+    const summary = checklistBudgetSummary(room.checklist, room.budget)
+    if (summary.allocated > 0) {
+      return `Saved pieces · ${count} · ${formatPrice(summary.allocated)}`
+    }
+    return `Saved pieces · ${count}`
+  })()
 
   useEffect(() => {
     if (!editingName) setName(room.name)
@@ -60,8 +87,31 @@ export default function RoomDetail({
   useEffect(() => {
     setReanalyzeError(null)
     setReanalyzing(false)
-    setRefreshingForBudget(false)
+    setRefreshingField(null)
+    setViewingPlanId(null)
   }, [room.id])
+
+  useEffect(() => {
+    if (
+      viewingPlanId != null &&
+      !room.plans.some((plan) => plan.id === viewingPlanId)
+    ) {
+      setViewingPlanId(null)
+    }
+  }, [room.plans, viewingPlanId])
+
+  useEffect(() => {
+    // A newly generated plan becomes current — exit history view.
+    setViewingPlanId(null)
+  }, [latestPlan?.id])
+
+  useEffect(
+    () => () => {
+      refreshAbortRef.current?.abort()
+      refreshAbortRef.current = null
+    },
+    [],
+  )
 
   function closeAllEditors() {
     setEditingName(false)
@@ -95,15 +145,92 @@ export default function RoomDetail({
     setEditingName(false)
   }
 
-  function handleSaveStyle() {
+  /**
+   * Regenerate recommendations after an edit that changes their inputs.
+   * `overrides` carries the new value, since `room` still holds the old one.
+   * Aborts any in-flight refresh so rapid style/budget edits only pay for the
+   * latest request.
+   */
+  async function refreshRecommendations(overrides, field, label) {
+    if (!room.plans?.length || !room.photo) return
+
+    refreshAbortRef.current?.abort()
+    const controller = new AbortController()
+    refreshAbortRef.current = controller
+    const isCurrent = () => refreshAbortRef.current === controller
+
+    const fallback = `${label} saved, but refreshing recommendations failed. Try Refresh ideas.`
+    setRefreshingField(field)
+    setReanalyzeError(null)
+    setProgressSteps([
+      {
+        id: 'review',
+        label: 'Reviewing your room analysis',
+        status: 'active',
+      },
+    ])
+
+    try {
+      const result = await generatePlan(
+        { ...room, ...overrides },
+        {
+          forceReanalyze: false,
+          signal: controller.signal,
+          onStep: (step) => {
+            if (isCurrent()) {
+              setProgressSteps((current) => mergeStep(current, step))
+            }
+          },
+        },
+      )
+
+      if (!isCurrent()) return
+
+      if (!result?.success) {
+        setReanalyzeError({
+          type: result?.errorType || 'api_error',
+          message: result?.message || fallback,
+        })
+        return
+      }
+
+      if (!result.plan?.roomAnalysis || !Array.isArray(result.plan?.items)) {
+        setReanalyzeError({ type: 'parse_error', message: fallback })
+        return
+      }
+
+      onPlanGenerated(result.plan)
+      if (result.photoUsed) {
+        onUpdateRoom({ photo: result.photoUsed })
+      }
+    } catch (err) {
+      if (err?.name === 'AbortError' || !isCurrent()) return
+      setReanalyzeError({ type: 'api_error', message: err.message || fallback })
+    } finally {
+      if (refreshAbortRef.current === controller) {
+        refreshAbortRef.current = null
+        setRefreshingField(null)
+        setProgressSteps([])
+      }
+    }
+  }
+
+  async function handleSaveStyle() {
     const trimmed = style.trim()
     if (!trimmed) {
       setStyle(room.style)
       setEditingStyle(false)
       return
     }
+    if (trimmed === room.style) {
+      setEditingStyle(false)
+      return
+    }
+
     onUpdateRoom({ style: trimmed })
     setEditingStyle(false)
+
+    await refreshRecommendations({ style: trimmed }, 'style', 'Style')
   }
 
   async function handleSaveBudget() {
@@ -117,50 +244,7 @@ export default function RoomDetail({
     onUpdateRoom({ budget: value })
     setEditingBudget(false)
 
-    if (!room.plans?.length || !room.photo) return
-
-    setRefreshingForBudget(true)
-    setReanalyzeError(null)
-
-    try {
-      const result = await generatePlan(
-        { ...room, budget: value },
-        { forceReanalyze: false },
-      )
-
-      if (!result?.success) {
-        setReanalyzeError({
-          type: result?.errorType || 'api_error',
-          message:
-            result?.message ||
-            'Budget saved, but refreshing recommendations failed. Try Refresh ideas.',
-        })
-        return
-      }
-
-      if (!result.plan?.roomAnalysis || !Array.isArray(result.plan?.items)) {
-        setReanalyzeError({
-          type: 'parse_error',
-          message:
-            'Budget saved, but refreshing recommendations failed. Try Refresh ideas.',
-        })
-        return
-      }
-
-      onPlanGenerated(result.plan)
-      if (result.photoUsed) {
-        onUpdateRoom({ photo: result.photoUsed })
-      }
-    } catch (err) {
-      setReanalyzeError({
-        type: 'api_error',
-        message:
-          err.message ||
-          'Budget saved, but refreshing recommendations failed. Try Refresh ideas.',
-      })
-    } finally {
-      setRefreshingForBudget(false)
-    }
+    await refreshRecommendations({ budget: value }, 'budget', 'Budget')
   }
 
   function handleSavePhoto() {
@@ -177,9 +261,19 @@ export default function RoomDetail({
     if (!room.photo || reanalyzing) return
     setReanalyzing(true)
     setReanalyzeError(null)
+    setProgressSteps([
+      {
+        id: 'photo',
+        label: 'Reading your room photo',
+        status: 'active',
+      },
+    ])
 
     try {
-      const result = await generatePlan(room, { forceReanalyze: true })
+      const result = await analyzeRoomPhoto(room, {
+        onStep: (step) =>
+          setProgressSteps((current) => mergeStep(current, step)),
+      })
 
       if (!result?.success) {
         setReanalyzeError({
@@ -191,7 +285,7 @@ export default function RoomDetail({
         return
       }
 
-      if (!result.plan?.roomAnalysis || !Array.isArray(result.plan?.items)) {
+      if (!result.analysis?.roomAnalysis) {
         setReanalyzeError({
           type: 'parse_error',
           message: 'Something went wrong on our end — try again in a moment.',
@@ -199,7 +293,11 @@ export default function RoomDetail({
         return
       }
 
-      onPlanGenerated(result.plan)
+      onUpdateAnalysis?.({
+        roomAnalysis: result.analysis.roomAnalysis,
+        dimensions: result.analysis.dimensions ?? null,
+        analyzedAt: result.analysis.analyzedAt ?? new Date().toISOString(),
+      })
       if (result.photoUsed) {
         onUpdateRoom({ photo: result.photoUsed })
       }
@@ -211,6 +309,7 @@ export default function RoomDetail({
       })
     } finally {
       setReanalyzing(false)
+      setProgressSteps([])
     }
   }
 
@@ -268,17 +367,15 @@ export default function RoomDetail({
               />
             </div>
           ) : (
-            <div className="relative">
+            <div className="relative overflow-hidden rounded-xl">
               {room.photo ? (
-                <div className="overflow-hidden rounded-xl">
-                  <img
-                    src={room.photo}
-                    alt={room.name}
-                    className="aspect-[16/9] w-full object-cover"
-                  />
-                </div>
+                <img
+                  src={room.photo}
+                  alt={room.name}
+                  className="aspect-[16/9] w-full object-cover"
+                />
               ) : (
-                <div className="flex aspect-[16/9] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
+                <div className="flex aspect-[16/9] items-center justify-center border border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
                   No photo — tap the pen icon to add one
                 </div>
               )}
@@ -293,13 +390,13 @@ export default function RoomDetail({
                 />
               </div>
               {room.photo && room.plans.length > 0 && (
-                <div className="mt-2">
+                <div className="absolute bottom-3 right-3">
                   <button
                     type="button"
                     onClick={handleReanalyzePhoto}
                     disabled={reanalyzing}
                     title="Re-read architecture, lighting, and existing pieces from the photo"
-                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-600 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded-md bg-white/90 px-2 py-1.5 text-xs text-gray-500 shadow-sm backdrop-blur-sm transition-colors hover:bg-white hover:text-gray-700 disabled:opacity-50"
                   >
                     <RefreshCw
                       size={13}
@@ -307,7 +404,7 @@ export default function RoomDetail({
                       className={reanalyzing ? 'animate-spin' : ''}
                       aria-hidden="true"
                     />
-                    {reanalyzing ? 'Re-analyzing…' : 'Re-analyze photo'}
+                    {reanalyzing ? 'Re-analyzing…' : 'Reanalyze room photo'}
                   </button>
                 </div>
               )}
@@ -315,7 +412,7 @@ export default function RoomDetail({
           )}
         </div>
 
-        <div className="mb-3">
+        <div className="mb-8">
           {editingName ? (
             <div className="space-y-3">
               <label htmlFor="room-name-edit" className="sr-only">
@@ -345,20 +442,9 @@ export default function RoomDetail({
                 disabled={!name.trim()}
               />
             </div>
-          ) : (
-            <div className="flex items-start gap-2">
-              <h1 className="type-page-title">{room.name}</h1>
-              <EditPenButton
-                onClick={() => startEditing('name')}
-                label="Edit room name"
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="mb-8">
-          {editingStyle ? (
+          ) : editingStyle ? (
             <div className="space-y-3">
+              <h1 className="type-page-title">{room.name}</h1>
               <label htmlFor="room-style-edit" className="sr-only">
                 Style preferences
               </label>
@@ -382,147 +468,204 @@ export default function RoomDetail({
                   setStyle(room.style)
                   setEditingStyle(false)
                 }}
-                disabled={!style.trim()}
+                disabled={!style.trim() || refreshingField !== null}
               />
+              <p className="text-xs text-gray-400">
+                Saving will refresh recommendations to match this style.
+              </p>
+            </div>
+          ) : editingBudget ? (
+            <div className="space-y-3">
+              <h1 className="type-page-title">{room.name}</h1>
+              <p className="text-gray-500 line-clamp-2">{room.style}</p>
+              <div className="space-y-3 rounded-lg bg-gray-50/80 px-3 py-3 ring-1 ring-gray-100">
+                <label htmlFor="room-budget-edit" className="text-xs font-medium text-gray-400">
+                  Budget
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    $
+                  </span>
+                  <input
+                    id="room-budget-edit"
+                    type="number"
+                    min="1"
+                    value={budget}
+                    onChange={(e) => setBudget(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveBudget()
+                      if (e.key === 'Escape') {
+                        setBudget(String(room.budget))
+                        setEditingBudget(false)
+                      }
+                    }}
+                    autoFocus
+                    className="w-full rounded-md border border-gray-200 bg-white py-2 pl-7 pr-3 text-lg focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
+                  />
+                </div>
+                <EditActions
+                  onSave={handleSaveBudget}
+                  onCancel={() => {
+                    setBudget(String(room.budget))
+                    setEditingBudget(false)
+                  }}
+                  disabled={!budget || Number(budget) <= 0 || refreshingField !== null}
+                />
+                <p className="text-xs text-gray-400">
+                  Saving will refresh recommendations to fit this budget.
+                </p>
+              </div>
             </div>
           ) : (
-            <div className="flex items-start gap-2">
-              <p className="text-gray-500">{room.style}</p>
-              <EditPenButton
-                onClick={() => startEditing('style')}
-                label="Edit style"
-              />
+            <div className="group">
+              <div className="flex items-start justify-between gap-3">
+                <h1 className="type-page-title min-w-0">{room.name}</h1>
+                <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
+                  <EditPenButton
+                    onClick={() => startEditing('name')}
+                    label="Edit room name"
+                  />
+                </div>
+              </div>
+              <div className="mt-2 flex items-start justify-between gap-3">
+                <p className="min-w-0 text-[15px] leading-relaxed text-gray-500 line-clamp-2">
+                  {room.style}
+                </p>
+                <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
+                  <EditPenButton
+                    onClick={() => startEditing('style')}
+                    label="Edit style"
+                  />
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <button
+                  type="button"
+                  onClick={() => startEditing('budget')}
+                  className="inline-flex items-center gap-1.5 rounded-md text-sm text-gray-500 transition-colors hover:text-gray-800"
+                >
+                  <Wallet size={14} strokeWidth={1.75} className="text-gray-400" aria-hidden="true" />
+                  <span className="font-medium tabular-nums text-gray-700">
+                    {formatPrice(room.budget)}
+                  </span>
+                  <span className="text-gray-400">budget</span>
+                </button>
+                {refreshingField === 'style' || refreshingField === 'budget' ? (
+                  <span className="text-xs text-gray-400">Updating recommendations…</span>
+                ) : null}
+              </div>
             </div>
           )}
         </div>
 
-        <div className="mb-10 space-y-1">
-          <div className="group flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-gray-50 sm:px-3">
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-500">
-              <Wallet size={15} strokeWidth={1.75} aria-hidden="true" />
+        {hasPlan && displayPlan?.styleThesis && (
+          <div className="mb-6 flex gap-3 rounded-xl bg-nest-muted/50 px-4 py-3.5 ring-1 ring-nest/10">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-nest text-white">
+              <Compass size={15} strokeWidth={1.75} aria-hidden="true" />
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="mb-0.5 flex items-center justify-between gap-2">
-                <p className="text-xs font-medium text-gray-400">Budget</p>
-                {!editingBudget && (
-                  <EditPenButton
-                    onClick={() => startEditing('budget')}
-                    label="Edit budget"
-                  />
-                )}
-              </div>
-              {editingBudget ? (
-                <div className="mt-1 space-y-3">
-                  <label htmlFor="room-budget-edit" className="sr-only">
-                    Budget
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      $
-                    </span>
-                    <input
-                      id="room-budget-edit"
-                      type="number"
-                      min="1"
-                      value={budget}
-                      onChange={(e) => setBudget(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleSaveBudget()
-                        if (e.key === 'Escape') {
-                          setBudget(String(room.budget))
-                          setEditingBudget(false)
-                        }
-                      }}
-                      autoFocus
-                      className="w-full rounded-md border border-gray-200 py-2 pl-7 pr-3 text-lg focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
-                    />
-                  </div>
-                  <EditActions
-                    onSave={handleSaveBudget}
-                    onCancel={() => {
-                      setBudget(String(room.budget))
-                      setEditingBudget(false)
-                    }}
-                    disabled={!budget || Number(budget) <= 0 || refreshingForBudget}
-                  />
-                  <p className="text-xs text-gray-400">
-                    Saving will refresh recommendations to fit this budget.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <p className="text-base font-medium text-gray-900">
-                    {formatBudget(room.budget)}
-                  </p>
-                  {refreshingForBudget && (
-                    <p className="mt-1 text-xs text-gray-400">
-                      Updating recommendations…
-                    </p>
-                  )}
-                </>
-              )}
+            <div className="min-w-0">
+              <p className="type-label mb-1 text-nest/50">
+                {viewingHistory ? 'Direction (earlier plan)' : 'Direction'}
+              </p>
+              <p className="font-serif text-xl leading-snug text-gray-900">
+                {displayPlan.styleThesis}
+              </p>
             </div>
           </div>
+        )}
 
-          <div className="mt-3 grid grid-cols-2 gap-3 px-2 sm:px-3">
+        {hasPlan && checkerAsHero ? (
+          <section className="mb-10">
             <button
               type="button"
               onClick={onCheckPiece}
-              className="group flex flex-col items-start gap-2 rounded-xl bg-nest-muted/50 px-3.5 py-3.5 text-left ring-1 ring-nest/10 transition-colors hover:bg-nest-muted hover:ring-nest/20"
+              className="group flex w-full items-start gap-4 rounded-2xl bg-nest px-5 py-5 text-left text-white shadow-[0_8px_24px_rgba(44,95,93,0.18)] transition-colors hover:bg-nest-light"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-nest text-white">
-                <ScanSearch size={16} strokeWidth={1.75} aria-hidden="true" />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
+                <ScanSearch size={22} strokeWidth={1.75} aria-hidden="true" />
               </span>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900">Check a piece</p>
-                <p className="mt-0.5 text-xs text-gray-500">
-                  {(room.checkHistory ?? []).length > 0
-                    ? `${room.checkHistory.length} checked`
-                    : 'Before you buy'}
+              <div className="min-w-0 flex-1">
+                <p className="font-serif text-2xl font-medium leading-tight">
+                  Before you buy
                 </p>
+                <p className="mt-1 text-sm text-white/75">
+                  Check a piece against this room’s direction, scale, and budget
+                </p>
+                {checkCount > 0 && (
+                  <p className="mt-2 text-xs text-white/55">
+                    {checkCount} piece{checkCount === 1 ? '' : 's'} checked
+                  </p>
+                )}
               </div>
+              <span
+                className="mt-1 text-white/50 transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              >
+                →
+              </span>
             </button>
 
-            <button
-              type="button"
-              onClick={onViewChecklist}
-              className="group flex flex-col items-start gap-2 rounded-xl bg-white px-3.5 py-3.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/80 transition-colors hover:bg-gray-50 hover:ring-gray-300/80"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-nest-muted text-nest">
-                <CheckSquare size={16} strokeWidth={1.75} aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-900">Checklist</p>
-                <p className="mt-0.5 text-xs text-gray-500">
-                  {room.checklist.length} items
-                </p>
-              </div>
-            </button>
-          </div>
-        </div>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 px-1">
+              <button
+                type="button"
+                onClick={onViewChecklist}
+                className="inline-flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-800"
+              >
+                <CheckSquare size={14} strokeWidth={1.75} aria-hidden="true" />
+                {checklistLabel}
+              </button>
+            </div>
+          </section>
+        ) : null}
+
+        {hasPlan && !checkerAsHero ? (
+          <section className="mb-8">
+            <p className="mb-3 text-sm text-gray-400">
+              This room is starting empty — use the plan below, then check
+              candidates before you buy
+            </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <button
+                type="button"
+                onClick={onCheckPiece}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-nest transition-colors hover:text-nest-light"
+              >
+                <ScanSearch size={14} strokeWidth={1.75} aria-hidden="true" />
+                Before you buy
+              </button>
+              <button
+                type="button"
+                onClick={onViewChecklist}
+                className="inline-flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-800"
+              >
+                <CheckSquare size={14} strokeWidth={1.75} aria-hidden="true" />
+                {checklistLabel}
+              </button>
+            </div>
+          </section>
+        ) : null}
 
         <div className="space-y-6">
           <RoomPlan
             room={room}
+            viewingPlanId={viewingPlanId}
+            onViewPlan={setViewingPlanId}
             onPlanGenerated={onPlanGenerated}
             onUpdateDimensions={onUpdateDimensions}
             onUpdatePhoto={(photo) => onUpdateRoom({ photo })}
             onSaveToChecklist={onSaveToChecklist}
             onRemoveFromChecklist={onRemoveFromChecklist}
-            isInChecklist={isInChecklist}
-            externalLoading={reanalyzing || refreshingForBudget}
+            hideDirection={hasPlan}
+            setupFraming={!hasPlan}
+            externalLoading={reanalyzing || refreshingField !== null}
+            externalLoadingMode={reanalyzing ? 'reanalyze' : 'refresh'}
+            externalSteps={progressSteps}
             externalError={reanalyzeError}
             onClearExternalError={() => setReanalyzeError(null)}
+            onRetryExternalError={
+              reanalyzeError ? handleReanalyzePhoto : undefined
+            }
           />
-
-          <div className="flex gap-3">
-            <Button variant="secondary" className="flex-1" onClick={onCheckPiece}>
-              Check a piece
-            </Button>
-            <Button variant="secondary" className="flex-1" onClick={onViewChecklist}>
-              View checklist
-            </Button>
-          </div>
         </div>
       </main>
     </div>

@@ -1,23 +1,90 @@
 import ChecklistItemRow from './ChecklistItemRow'
+import {
+  checklistBudgetSummary,
+  isChecklistBought,
+} from '../lib/checklistItem'
+import { formatPrice } from '../lib/itemVisuals'
 
-function countByStatus(items, status) {
-  return items.filter((item) => item.status === status).length
+function BudgetSummary({ room }) {
+  const summary = checklistBudgetSummary(room.checklist, room.budget)
+  if (!summary.roomBudget && summary.allocated === 0) return null
+
+  const progress =
+    summary.roomBudget > 0
+      ? Math.min((summary.allocated / summary.roomBudget) * 100, 100)
+      : 0
+  const over = summary.overBy > 0
+
+  return (
+    <div className="mb-6 rounded-lg border border-gray-100 px-3 py-2.5">
+      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <p className="text-sm font-medium text-gray-900">
+          {formatPrice(summary.allocated)}
+          {summary.roomBudget != null ? (
+            <span className="font-normal text-gray-400">
+              {' '}
+              of {formatPrice(summary.roomBudget)}
+            </span>
+          ) : null}
+        </p>
+        <p className="text-xs text-gray-500">
+          {over ? (
+            <span className="font-medium text-red-600">
+              {formatPrice(summary.overBy)} over
+            </span>
+          ) : summary.remaining != null ? (
+            <span>{formatPrice(summary.remaining)} left</span>
+          ) : null}
+          {summary.spent > 0 ? (
+            <span className="text-gray-400">
+              {over || summary.remaining != null ? ' · ' : ''}
+              {formatPrice(summary.spent)} spent
+            </span>
+          ) : null}
+        </p>
+      </div>
+
+      {summary.roomBudget != null ? (
+        <div
+          className="h-1 overflow-hidden rounded-full bg-gray-100"
+          role="progressbar"
+          aria-valuenow={Math.round(progress)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Saved pieces budget used"
+        >
+          <div
+            className={`h-full rounded-full transition-[width] ${
+              over ? 'bg-red-500' : 'bg-nest'
+            }`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      ) : null}
+
+      {summary.pricedCount < summary.itemCount ? (
+        <p className="mt-1.5 text-[11px] text-gray-400">
+          {summary.itemCount - summary.pricedCount} still need a budget
+        </p>
+      ) : null}
+    </div>
+  )
 }
 
 export default function ChecklistView({
   room,
   onBack,
   onUpdateStatus,
+  onUpdateBudget,
   onDeleteItem,
 }) {
   const { checklist } = room
-  const purchased = countByStatus(checklist, 'purchased')
-  const placed = countByStatus(checklist, 'placed')
-  const toBuy = countByStatus(checklist, 'saved')
 
   const sorted = [...checklist].sort((a, b) => {
-    const order = { saved: 0, purchased: 1, placed: 2 }
-    return order[a.status] - order[b.status]
+    const aBought = isChecklistBought(a) ? 1 : 0
+    const bBought = isChecklistBought(b) ? 1 : 0
+    if (aBought !== bBought) return aBought - bBought
+    return 0
   })
 
   return (
@@ -48,33 +115,18 @@ export default function ChecklistView({
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-10">
-        <h1 className="type-page-title mb-2">Checklist</h1>
+        <h1 className="type-page-title mb-2">Saved pieces</h1>
         <p className="mb-8 text-sm text-gray-400">
-          Track what you've saved, bought, and placed in your room
+          Pieces you're considering for this room
         </p>
 
-        {checklist.length > 0 && (
-          <div className="mb-8 grid grid-cols-3 gap-3">
-            <div className="rounded-lg border border-gray-100 px-4 py-3 text-center">
-              <p className="text-2xl font-medium text-gray-900">{toBuy}</p>
-              <p className="text-xs text-gray-400">To buy</p>
-            </div>
-            <div className="rounded-lg border border-gray-100 px-4 py-3 text-center">
-              <p className="text-2xl font-medium text-nest">{purchased}</p>
-              <p className="text-xs text-gray-400">Purchased</p>
-            </div>
-            <div className="rounded-lg border border-gray-100 px-4 py-3 text-center">
-              <p className="text-2xl font-medium text-emerald-600">{placed}</p>
-              <p className="text-xs text-gray-400">Placed</p>
-            </div>
-          </div>
-        )}
+        {checklist.length > 0 ? <BudgetSummary room={room} /> : null}
 
         {checklist.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-200 px-6 py-12 text-center">
-            <p className="mb-1 font-medium text-gray-700">No items yet</p>
+            <p className="mb-1 font-medium text-gray-700">No pieces yet</p>
             <p className="text-sm text-gray-400">
-              Save items from your design plan or piece compatibility checks
+              Save from your recommendations or when you check a piece
             </p>
           </div>
         ) : (
@@ -84,6 +136,7 @@ export default function ChecklistView({
                 key={item.id}
                 item={item}
                 onUpdateStatus={onUpdateStatus}
+                onUpdateBudget={onUpdateBudget}
                 onDelete={onDeleteItem}
               />
             ))}

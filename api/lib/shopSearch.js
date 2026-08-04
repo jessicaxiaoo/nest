@@ -1,9 +1,10 @@
-import { apiErrorResponse, readJsonBody } from './utils.js'
+import { apiErrorResponse } from './utils.js'
 
 const SERPER_URL = 'https://google.serper.dev/shopping'
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000
 const FETCH_COUNT = 10
 const MAX_RESULTS = 3
+const SEARCH_TIMEOUT_MS = 10_000
 
 /** In-memory cache keyed by normalized query + maxPrice. */
 const queryCache = new Map()
@@ -68,7 +69,7 @@ function filterByMaxPrice(products, maxPrice) {
   })
 }
 
-export async function searchShopping(query, maxPrice = null) {
+export async function searchShopping(query, maxPrice = null, options = {}) {
   const apiKey = process.env.SERPER_API_KEY
   if (!apiKey) {
     return {
@@ -91,20 +92,37 @@ export async function searchShopping(query, maxPrice = null) {
 
   const ceiling =
     maxPrice != null && Number(maxPrice) > 0 ? Number(maxPrice) : null
+  const limit = Math.min(
+    Math.max(Number(options.limit) || MAX_RESULTS, 1),
+    FETCH_COUNT,
+  )
 
+  // The cache holds the full fetched page, so any limit up to FETCH_COUNT can be served from it.
   const cached = getCached(q, ceiling)
   if (cached) {
-    return { success: true, products: cached, cached: true }
+    return { success: true, products: cached.slice(0, limit), cached: true }
   }
 
-  const response = await fetch(SERPER_URL, {
-    method: 'POST',
-    headers: {
-      'X-API-KEY': apiKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ q, num: FETCH_COUNT }),
-  })
+  let response
+  try {
+    response = await fetch(SERPER_URL, {
+      method: 'POST',
+      headers: {
+        'X-API-KEY': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ q, num: FETCH_COUNT }),
+      signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+    })
+  } catch (err) {
+    console.error('[shopSearch] Serper request failed', err?.name || err)
+    return {
+      success: false,
+      errorType: 'api_error',
+      message: 'Shopping search failed.',
+      products: [],
+    }
+  }
 
   if (!response.ok) {
     const errText = await response.text().catch(() => '')
@@ -117,15 +135,28 @@ export async function searchShopping(query, maxPrice = null) {
     }
   }
 
-  const data = await response.json()
+  const data = await response.json().catch(() => null)
+  if (!data) {
+    return {
+      success: false,
+      errorType: 'api_error',
+      message: 'Shopping search failed.',
+      products: [],
+    }
+  }
+
   const products = filterByMaxPrice(
     (data.shopping ?? []).map(normalizeProduct).filter(Boolean),
     ceiling,
-  ).slice(0, MAX_RESULTS)
+  )
 
   setCache(q, products, ceiling)
 
-  return { success: true, products, cached: false }
+  return {
+    success: true,
+    products: products.slice(0, limit),
+    cached: false,
+  }
 }
 
 export async function handleShopSearchRequest(body) {
@@ -140,5 +171,3 @@ export async function handleShopSearchRequest(body) {
     return apiErrorResponse()
   }
 }
-
-export { readJsonBody }

@@ -53,6 +53,16 @@ export function formatPrice(n) {
   }).format(n)
 }
 
+/** Short display title — category-first, capped word count. */
+export function shortTitle(value, fallback = 'Furniture piece', maxWords = 6) {
+  const words = String(value ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (words.length === 0) return fallback
+  return words.slice(0, maxWords).join(' ')
+}
+
 export function formatBudgetRange(min, max) {
   if (!min && !max) return null
   if (min && max) return `${formatPrice(min)} – ${formatPrice(max)}`
@@ -60,7 +70,7 @@ export function formatBudgetRange(min, max) {
 }
 
 /** Hide finish/texture when it mostly repeats the material. */
-export function resolveFinish(material, texture) {
+function resolveFinish(material, texture) {
   const finish = typeof texture === 'string' ? texture.trim() : ''
   if (!finish) return null
   const mat = typeof material === 'string' ? material.trim().toLowerCase() : ''

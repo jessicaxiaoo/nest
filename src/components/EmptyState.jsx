@@ -1,19 +1,4 @@
-function PlusIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      className="h-6 w-6"
-      aria-hidden="true"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  )
-}
+import { Plus } from 'lucide-react'
 
 export default function EmptyState({ onAddRoom }) {
   return (
@@ -53,7 +38,7 @@ export default function EmptyState({ onAddRoom }) {
               className="group relative z-10 mx-auto flex flex-col items-center gap-3 rounded-xl px-6 py-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-nest focus-visible:ring-offset-2"
             >
               <span className="flex h-16 w-16 items-center justify-center rounded-full bg-nest text-white shadow-sm transition-colors group-hover:bg-nest-light group-active:scale-[0.98]">
-                <PlusIcon />
+                <Plus className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />
               </span>
               <span className="text-sm font-medium text-gray-700 transition-colors group-hover:text-nest">
                 Add your first room

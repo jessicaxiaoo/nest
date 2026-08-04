@@ -1,7 +1,5 @@
-import {
-  handleRecommendItemsRequest,
-  readJsonBody,
-} from './lib/generateRoomPlan.js'
+import { handleRecommendItemsRequest } from './lib/generateRoomPlan.js'
+import { readJsonBody } from './lib/utils.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

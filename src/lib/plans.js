@@ -9,12 +9,20 @@ export function createPlanRecord(planData) {
 }
 
 export function createChecklistItem(item, source = 'plan') {
+  const {
+    id: _ignoredId,
+    addedAt: _ignoredAddedAt,
+    status: _ignoredStatus,
+    source: _ignoredSource,
+    ...rest
+  } = item ?? {}
+
   return {
+    ...rest,
     id: generateId(),
     addedAt: new Date().toISOString(),
     status: 'saved',
     source,
-    ...item,
   }
 }
 

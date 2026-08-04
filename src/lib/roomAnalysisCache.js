@@ -21,7 +21,7 @@ async function hashPhoto(photo) {
   return `fnv${(hash >>> 0).toString(16)}`
 }
 
-export async function photoCacheKey(photo) {
+async function photoCacheKey(photo) {
   const hash = await hashPhoto(photo)
   return `${CACHE_PREFIX}${hash}`
 }

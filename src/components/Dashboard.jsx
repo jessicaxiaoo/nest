@@ -1,21 +1,5 @@
+import { Plus } from 'lucide-react'
 import Button from './Button'
-
-function PlusIcon({ className = 'h-5 w-5' }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className={className}
-      aria-hidden="true"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  )
-}
 
 function RoomCard({ room, onClick }) {
   return (
@@ -33,7 +17,7 @@ function RoomCard({ room, onClick }) {
           />
         ) : (
           <div className="flex h-full items-center justify-center text-gray-200">
-            <PlusIcon className="h-10 w-10" />
+            <Plus className="h-10 w-10" strokeWidth={2} aria-hidden="true" />
           </div>
         )}
       </div>
@@ -52,7 +36,7 @@ export default function Dashboard({ rooms, onAddRoom, onOpenRoom }) {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
           <h1 className="font-serif text-2xl text-nest">Nest</h1>
           <Button onClick={onAddRoom} className="flex items-center gap-2">
-            <PlusIcon className="h-4 w-4" />
+            <Plus className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
             Add a Room
           </Button>
         </div>

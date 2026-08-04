@@ -11,18 +11,8 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
-import { categoryIcon, formatPrice } from '../lib/itemVisuals'
-
-const MAX_TITLE_WORDS = 6
-
-function shortTitle(value, fallback = 'Furniture piece') {
-  const words = String(value ?? '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-  if (words.length === 0) return fallback
-  return words.slice(0, MAX_TITLE_WORDS).join(' ')
-}
+import { needsAlternatives } from '../../api/lib/verdict.js'
+import { categoryIcon, formatPrice, shortTitle } from '../lib/itemVisuals'
 
 const SIGNAL_META = {
   style: {
@@ -143,12 +133,7 @@ export default function CompatibilityVerdict({
   const title = shortTitle(verdict.pieceDescription)
   const Icon = categoryIcon(title)
   const needsAlternative =
-    verdict.alternativeSuggestion &&
-    (verdict.style.signal !== 'compatible' ||
-      verdict.scale.signal !== 'appropriate' ||
-      verdict.color.signal !== 'harmonious' ||
-      verdict.budget?.signal === 'over_budget' ||
-      verdict.budget?.signal === 'stretch')
+    Boolean(verdict.alternativeSuggestion) && needsAlternatives(verdict)
 
   return (
     <article className="relative overflow-hidden rounded-xl bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/80">
@@ -257,7 +242,7 @@ export default function CompatibilityVerdict({
               <button
                 type="button"
                 onClick={onRemove}
-                title="Remove from checklist"
+                title="Remove from saved pieces"
                 className="group inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-nest transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-nest focus-visible:ring-offset-1"
               >
                 <Check
@@ -282,7 +267,7 @@ export default function CompatibilityVerdict({
                 className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-nest transition-colors hover:bg-nest-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-nest focus-visible:ring-offset-1"
               >
                 <Plus size={14} strokeWidth={2} aria-hidden="true" />
-                Save to checklist
+                Add to saved pieces
               </button>
             ) : null}
           </div>

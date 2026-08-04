@@ -40,7 +40,7 @@ export function compressDataUrl(dataUrl) {
   return compressDataUrlIfNeeded(dataUrl, 0)
 }
 
-export function compressDataUrlIfNeeded(dataUrl, threshold = TARGET_MAX_BYTES) {
+function compressDataUrlIfNeeded(dataUrl, threshold = TARGET_MAX_BYTES) {
   return new Promise((resolve, reject) => {
     if (!dataUrl?.startsWith('data:image/')) {
       reject(new Error('Invalid photo format'))
@@ -58,7 +58,7 @@ export function compressDataUrlIfNeeded(dataUrl, threshold = TARGET_MAX_BYTES) {
   })
 }
 
-export function validatePhotoDataUrl(dataUrl) {
+function validatePhotoDataUrl(dataUrl) {
   return new Promise((resolve, reject) => {
     if (!dataUrl?.startsWith('data:image/')) {
       reject(new Error('Invalid photo format'))
