@@ -1,5 +1,5 @@
-import { handleShopSearchRequest } from './lib/shopSearch.js'
-import { readJsonBody } from './lib/utils.js'
+import { handleShopSearchRequest } from '../src/server/shopSearch.js'
+import { readJsonBody } from '../src/server/utils.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

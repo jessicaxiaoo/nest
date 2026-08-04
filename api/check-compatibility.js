@@ -1,5 +1,5 @@
-import { handleCheckCompatibilityRequest } from './lib/checkCompatibility.js'
-import { readJsonBody } from './lib/utils.js'
+import { handleCheckCompatibilityRequest } from '../src/server/checkCompatibility.js'
+import { readJsonBody } from '../src/server/utils.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

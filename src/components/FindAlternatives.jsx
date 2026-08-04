@@ -8,7 +8,7 @@ import {
 } from '../lib/alternativesCache'
 import { formatPrice } from '../lib/itemVisuals'
 import { mergeStep } from '../lib/progressSteps'
-import { needsAlternatives } from '../../api/lib/verdict.js'
+import { needsAlternatives } from '../server/verdict.js'
 import LoadingProgress from './LoadingProgress'
 import { ProductSaveButton, ShopProductCard } from './ShopProductStrip'
 

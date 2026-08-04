@@ -1,5 +1,5 @@
-import { handleScrapeUrlRequest } from './lib/scrapeUrl.js'
-import { readJsonBody } from './lib/utils.js'
+import { handleScrapeUrlRequest } from '../src/server/scrapeUrl.js'
+import { readJsonBody } from '../src/server/utils.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

@@ -1,9 +1,9 @@
 import {
   handleFindAlternativesRequest,
   streamFindAlternativesRequest,
-} from './lib/findAlternatives.js'
-import { createSseStream, wantsEventStream } from './lib/sse.js'
-import { readJsonBody } from './lib/utils.js'
+} from '../src/server/findAlternatives.js'
+import { createSseStream, wantsEventStream } from '../src/server/sse.js'
+import { readJsonBody } from '../src/server/utils.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

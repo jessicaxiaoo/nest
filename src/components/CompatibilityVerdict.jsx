@@ -11,7 +11,7 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
-import { needsAlternatives } from '../../api/lib/verdict.js'
+import { needsAlternatives } from '../server/verdict.js'
 import { categoryIcon, formatPrice, shortTitle } from '../lib/itemVisuals'
 
 const SIGNAL_META = {

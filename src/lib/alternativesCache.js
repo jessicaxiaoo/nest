@@ -1,4 +1,4 @@
-import { failingAxes } from '../../api/lib/verdict.js'
+import { failingAxes } from '../server/verdict.js'
 
 const CACHE_PREFIX = 'nest:alternatives:'
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000

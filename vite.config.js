@@ -1,19 +1,19 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import { handleCheckCompatibilityRequest } from './api/lib/checkCompatibility.js'
+import { handleCheckCompatibilityRequest } from './src/server/checkCompatibility.js'
 import {
   handleFindAlternativesRequest,
   streamFindAlternativesRequest,
-} from './api/lib/findAlternatives.js'
-import { createSseStream, wantsEventStream } from './api/lib/sse.js'
+} from './src/server/findAlternatives.js'
+import { createSseStream, wantsEventStream } from './src/server/sse.js'
 import {
   handleAnalyzeRoomRequest,
   handleRecommendItemsRequest,
-} from './api/lib/generateRoomPlan.js'
-import { handleScrapeUrlRequest } from './api/lib/scrapeUrl.js'
-import { handleShopSearchRequest } from './api/lib/shopSearch.js'
-import { readJsonBody } from './api/lib/utils.js'
+} from './src/server/generateRoomPlan.js'
+import { handleScrapeUrlRequest } from './src/server/scrapeUrl.js'
+import { handleShopSearchRequest } from './src/server/shopSearch.js'
+import { readJsonBody } from './src/server/utils.js'
 
 function createApiMiddleware(handler, streamHandler) {
   return async (req, res, next) => {

@@ -12,7 +12,7 @@ import CompatibilityVerdict, {
 } from './CompatibilityVerdict'
 import FindAlternatives from './FindAlternatives'
 import PhotoUpload from './PhotoUpload'
-import { needsAlternatives } from '../../api/lib/verdict.js'
+import { needsAlternatives } from '../server/verdict.js'
 
 function formatCheckedAt(iso) {
   if (!iso) return ''
