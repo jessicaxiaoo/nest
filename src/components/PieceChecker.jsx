@@ -349,7 +349,7 @@ export default function PieceChecker({
         </div>
 
         {(room.photo || room.plans?.[0]?.styleThesis) && (
-          <div className="flex gap-3 rounded-xl bg-nest-muted/40 px-3.5 py-3 ring-1 ring-nest/10">
+          <div className="flex gap-3 rounded-xl bg-vignette-muted/40 px-3.5 py-3 ring-1 ring-vignette/10">
             {room.photo ? (
               <img
                 src={room.photo}
@@ -358,7 +358,7 @@ export default function PieceChecker({
               />
             ) : null}
             <div className="min-w-0 flex-1">
-              <p className="type-label mb-0.5 text-nest/50">Checking against</p>
+              <p className="type-label mb-0.5 text-vignette/50">Checking against</p>
               <p className="text-sm font-medium text-gray-900">{room.name}</p>
               {room.plans?.[0]?.styleThesis ? (
                 <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-gray-500">
@@ -378,7 +378,7 @@ export default function PieceChecker({
             <section>
               <div className="mb-5">
                 <h3 className="flex items-center gap-2.5 font-serif text-2xl font-medium text-gray-900">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-nest-muted text-nest">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-vignette-muted text-vignette">
                     <ScanSearch size={16} strokeWidth={1.75} aria-hidden="true" />
                   </span>
                   Add a piece
@@ -388,7 +388,7 @@ export default function PieceChecker({
                 </p>
               </div>
 
-              <div className="rounded-xl bg-nest-muted/40 px-3 py-4 sm:px-4">
+              <div className="rounded-xl bg-vignette-muted/40 px-3 py-4 sm:px-4">
                 <div className="mb-4 flex gap-1 rounded-lg bg-white/70 p-1 ring-1 ring-gray-200/60">
                   <button
                     type="button"
@@ -429,7 +429,7 @@ export default function PieceChecker({
                       value={url}
                       onChange={(e) => setUrl(e.target.value)}
                       placeholder="Product page or direct image link"
-                      className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
+                      className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-300 focus:border-vignette focus:outline-none focus:ring-1 focus:ring-vignette"
                     />
                     <p className="text-xs text-gray-400">
                       If a store blocks the product page, paste a direct image
@@ -494,7 +494,7 @@ export default function PieceChecker({
                       value={piecePrice}
                       onChange={(e) => setPiecePrice(e.target.value)}
                       placeholder="e.g. 450"
-                      className="w-full rounded-lg border border-gray-200 bg-white py-3 pl-7 pr-4 text-sm text-gray-900 placeholder:text-gray-300 focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
+                      className="w-full rounded-lg border border-gray-200 bg-white py-3 pl-7 pr-4 text-sm text-gray-900 placeholder:text-gray-300 focus:border-vignette focus:outline-none focus:ring-1 focus:ring-vignette"
                     />
                   </div>
                   {room.budget > 0 && (
@@ -548,7 +548,7 @@ export default function PieceChecker({
               <section>
                 <div className="mb-5">
                   <h3 className="flex items-center gap-2.5 font-serif text-2xl font-medium text-gray-900">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-nest-muted text-nest">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-vignette-muted text-vignette">
                       <History size={16} strokeWidth={1.75} aria-hidden="true" />
                     </span>
                     Check history
@@ -589,7 +589,7 @@ export default function PieceChecker({
                                 className="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-gray-200/80"
                               />
                             ) : (
-                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-nest-muted text-nest">
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-vignette-muted text-vignette">
                                 <Icon
                                   size={17}
                                   strokeWidth={1.75}
@@ -638,7 +638,7 @@ export default function PieceChecker({
           <section className="space-y-5">
             <div>
               <h3 className="flex items-center gap-2.5 font-serif text-2xl font-medium text-gray-900">
-                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-nest-muted text-nest">
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-vignette-muted text-vignette">
                   <ScanSearch size={16} strokeWidth={1.75} aria-hidden="true" />
                 </span>
                 Compatibility result

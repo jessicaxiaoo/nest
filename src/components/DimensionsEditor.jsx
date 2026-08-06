@@ -38,7 +38,7 @@ export default function DimensionsEditor({
     <div className="rounded-lg bg-white/70 px-3 py-3 ring-1 ring-gray-100/80 sm:px-4">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm font-medium text-gray-800">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-nest-muted text-nest">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-vignette-muted text-vignette">
             <Ruler size={14} strokeWidth={1.75} aria-hidden="true" />
           </span>
           Room dimensions
@@ -48,7 +48,7 @@ export default function DimensionsEditor({
             type="button"
             onClick={() => setEditing(true)}
             disabled={regenerating}
-            className="rounded-md px-1.5 py-0.5 text-xs font-medium text-nest transition-colors hover:bg-nest-muted disabled:opacity-50"
+            className="rounded-md px-1.5 py-0.5 text-xs font-medium text-vignette transition-colors hover:bg-vignette-muted disabled:opacity-50"
           >
             Edit
           </button>
@@ -75,7 +75,7 @@ export default function DimensionsEditor({
                 value={length}
                 onChange={(e) => setLength(e.target.value)}
                 placeholder="12"
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
+                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-vignette focus:outline-none focus:ring-1 focus:ring-vignette"
               />
             </div>
             <span className="mt-5 text-gray-300">×</span>
@@ -90,7 +90,7 @@ export default function DimensionsEditor({
                 value={width}
                 onChange={(e) => setWidth(e.target.value)}
                 placeholder="14"
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
+                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm focus:border-vignette focus:outline-none focus:ring-1 focus:ring-vignette"
               />
             </div>
           </div>

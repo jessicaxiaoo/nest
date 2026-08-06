@@ -4,7 +4,7 @@ export default function EditPenButton({ onClick, label }) {
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="shrink-0 rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-nest"
+      className="shrink-0 rounded p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-vignette"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -32,7 +32,7 @@ function EditActions({ onSave, onCancel, disabled = false }) {
         type="button"
         onClick={onSave}
         disabled={disabled}
-        className="rounded-md bg-nest px-3 py-1 text-xs font-medium text-white hover:bg-nest-light disabled:opacity-50"
+        className="rounded-md bg-vignette px-3 py-1 text-xs font-medium text-white hover:bg-vignette-light disabled:opacity-50"
       >
         Save
       </button>

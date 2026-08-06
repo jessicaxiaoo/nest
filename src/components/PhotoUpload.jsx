@@ -72,7 +72,7 @@ export default function PhotoUpload({
           className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-16 transition-colors ${
             processing
               ? 'cursor-wait border-gray-200 bg-gray-50'
-              : 'cursor-pointer border-gray-200 hover:border-nest/40 hover:bg-nest-muted/50'
+              : 'cursor-pointer border-gray-200 hover:border-vignette/40 hover:bg-vignette-muted/50'
           }`}
         >
           <svg

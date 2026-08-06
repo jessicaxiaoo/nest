@@ -1,9 +1,9 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-nest: #2c5f5d;
-  --color-nest-light: #3a7a77;
-  --color-nest-muted: #2c5f5d1a;
+  --color-vignette: #2c5f5d;
+  --color-vignette-light: #3a7a77;
+  --color-vignette-muted: #2c5f5d1a;
   --font-serif: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
@@ -18,7 +18,7 @@
    type-page-title — top-level page headings (serif, largest, darkest)
    type-card-title — titles inside cards and list rows
    type-label      — small uppercase group labels, muted (not headings)
-   Override color when needed, e.g. "type-label text-nest". */
+   Override color when needed, e.g. "type-label text-vignette". */
 
 @utility type-page-title {
   font-family: var(--font-serif);

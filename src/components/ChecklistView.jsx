@@ -55,7 +55,7 @@ function BudgetSummary({ room }) {
         >
           <div
             className={`h-full rounded-full transition-[width] ${
-              over ? 'bg-red-500' : 'bg-nest'
+              over ? 'bg-red-500' : 'bg-vignette'
             }`}
             style={{ width: `${progress}%` }}
           />

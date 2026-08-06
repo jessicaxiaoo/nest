@@ -67,10 +67,10 @@ export default function PlanItem({
       <div className="pl-4 pr-3 py-3.5 sm:pl-5 sm:pr-4">
         <div className="mb-2.5 flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-nest text-xs font-semibold tabular-nums text-white">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-vignette text-xs font-semibold tabular-nums text-white">
               {index + 1}
             </span>
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-nest-muted text-nest">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-vignette-muted text-vignette">
               <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
             </span>
             <h4 className="type-card-title truncate">{item.category}</h4>
@@ -97,7 +97,7 @@ export default function PlanItem({
               </div>
             )}
             {item.styleName && (
-              <span className="inline-flex items-center gap-1 rounded bg-nest-muted px-1.5 py-0.5 text-xs font-medium text-nest">
+              <span className="inline-flex items-center gap-1 rounded bg-vignette-muted px-1.5 py-0.5 text-xs font-medium text-vignette">
                 <Sparkles size={11} strokeWidth={2} aria-hidden="true" />
                 {item.styleName}
               </span>
@@ -112,7 +112,7 @@ export default function PlanItem({
           formatBudgetRange(item.budgetMin, item.budgetMax) ||
           dimensions ||
           item.placement) && (
-          <div className="mb-2 rounded-lg bg-nest-muted/60 px-3 py-2.5 space-y-1.5 sm:ml-[4.75rem]">
+          <div className="mb-2 rounded-lg bg-vignette-muted/60 px-3 py-2.5 space-y-1.5 sm:ml-[4.75rem]">
             {item.priceOptions?.length > 0 ? (
               item.priceOptions.map((opt) => (
                 <PropRow key={opt.tier} icon={DollarSign} label={opt.tier}>
@@ -120,7 +120,7 @@ export default function PlanItem({
                     {formatPrice(opt.price)}
                   </span>{' '}
                   <span
-                    className={`text-xs ${opt.tier === 'Upgrade' ? 'text-nest' : 'text-gray-400'}`}
+                    className={`text-xs ${opt.tier === 'Upgrade' ? 'text-vignette' : 'text-gray-400'}`}
                   >
                     {opt.tier}
                   </span>

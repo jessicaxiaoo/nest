@@ -77,7 +77,7 @@ export default function RoomSetup({ onComplete, onCancel }) {
 
       {/* Progress sits at the top so you see where you are before the step content */}
       <div className="mb-8">
-        <p className="type-label mb-2 text-nest">
+        <p className="type-label mb-2 text-vignette">
           Step {step + 1} of {STEPS.length}
         </p>
         <div className="flex gap-1.5" role="progressbar" aria-valuenow={step + 1} aria-valuemin={1} aria-valuemax={STEPS.length}>
@@ -85,7 +85,7 @@ export default function RoomSetup({ onComplete, onCancel }) {
             <div
               key={s}
               className={`h-1 flex-1 rounded-full transition-colors ${
-                i <= step ? 'bg-nest' : 'bg-gray-100'
+                i <= step ? 'bg-vignette' : 'bg-gray-100'
               }`}
             />
           ))}
@@ -131,7 +131,7 @@ export default function RoomSetup({ onComplete, onCancel }) {
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Primary bedroom, Living room, Home office"
               autoFocus
-              className="w-full border-b-2 border-gray-200 bg-transparent py-3 text-lg text-gray-900 placeholder:text-gray-300 focus:border-nest focus:outline-none"
+              className="w-full border-b-2 border-gray-200 bg-transparent py-3 text-lg text-gray-900 placeholder:text-gray-300 focus:border-vignette focus:outline-none"
             />
           </div>
         )}
@@ -161,7 +161,7 @@ export default function RoomSetup({ onComplete, onCancel }) {
               placeholder='e.g. "Warm, cozy, Japandi-inspired with natural wood tones"'
               rows={4}
               autoFocus
-              className="w-full resize-none rounded-lg border border-gray-200 px-4 py-3 text-gray-900 placeholder:text-gray-300 focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
+              className="w-full resize-none rounded-lg border border-gray-200 px-4 py-3 text-gray-900 placeholder:text-gray-300 focus:border-vignette focus:outline-none focus:ring-1 focus:ring-vignette"
             />
           </div>
         )}
@@ -183,7 +183,7 @@ export default function RoomSetup({ onComplete, onCancel }) {
                 onChange={(e) => setBudget(e.target.value)}
                 placeholder="3,000"
                 autoFocus
-                className="w-full rounded-lg border border-gray-200 py-3 pl-8 pr-4 text-lg text-gray-900 placeholder:text-gray-300 focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
+                className="w-full rounded-lg border border-gray-200 py-3 pl-8 pr-4 text-lg text-gray-900 placeholder:text-gray-300 focus:border-vignette focus:outline-none focus:ring-1 focus:ring-vignette"
               />
             </div>
           </div>

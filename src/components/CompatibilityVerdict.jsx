@@ -152,7 +152,7 @@ export default function CompatibilityVerdict({
                 className="h-10 w-10 shrink-0 rounded-lg object-cover ring-1 ring-gray-200/80"
               />
             ) : (
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-nest-muted text-nest">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-vignette-muted text-vignette">
                 <Icon size={17} strokeWidth={1.75} aria-hidden="true" />
               </span>
             )}
@@ -177,7 +177,7 @@ export default function CompatibilityVerdict({
           </span>
         </div>
 
-        <div className="mb-2 rounded-lg bg-nest-muted/60 px-3 py-2.5 space-y-2 sm:ml-12">
+        <div className="mb-2 rounded-lg bg-vignette-muted/60 px-3 py-2.5 space-y-2 sm:ml-12">
           <AxisRow axis="style" data={verdict.style} />
           <AxisRow axis="scale" data={verdict.scale} />
           <AxisRow axis="color" data={verdict.color} />
@@ -203,12 +203,12 @@ export default function CompatibilityVerdict({
 
             {expanded && (
               <div className="mt-2 space-y-3">
-                <div className="flex gap-3 rounded-xl bg-nest-muted/50 px-3.5 py-3 ring-1 ring-nest/10">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-nest text-white">
+                <div className="flex gap-3 rounded-xl bg-vignette-muted/50 px-3.5 py-3 ring-1 ring-vignette/10">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-vignette text-white">
                     <Compass size={15} strokeWidth={1.75} aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
-                    <p className="type-label mb-1 text-nest/50">Overall</p>
+                    <p className="type-label mb-1 text-vignette/50">Overall</p>
                     <p className="text-sm leading-relaxed text-gray-700">
                       {verdict.overallVerdict}
                     </p>
@@ -243,7 +243,7 @@ export default function CompatibilityVerdict({
                 type="button"
                 onClick={onRemove}
                 title="Remove from saved pieces"
-                className="group inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-nest transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-nest focus-visible:ring-offset-1"
+                className="group inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-vignette transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-vignette focus-visible:ring-offset-1"
               >
                 <Check
                   size={14}
@@ -264,7 +264,7 @@ export default function CompatibilityVerdict({
               <button
                 type="button"
                 onClick={onSave}
-                className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-nest transition-colors hover:bg-nest-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-nest focus-visible:ring-offset-1"
+                className="inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-vignette transition-colors hover:bg-vignette-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-vignette focus-visible:ring-offset-1"
               >
                 <Plus size={14} strokeWidth={2} aria-hidden="true" />
                 Add to saved pieces

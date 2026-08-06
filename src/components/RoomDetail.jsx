@@ -431,7 +431,7 @@ export default function RoomDetail({
                   }
                 }}
                 autoFocus
-                className="type-page-title w-full border-b-2 border-nest bg-transparent py-1 focus:outline-none"
+                className="type-page-title w-full border-b-2 border-vignette bg-transparent py-1 focus:outline-none"
               />
               <EditActions
                 onSave={handleSaveName}
@@ -460,7 +460,7 @@ export default function RoomDetail({
                 }}
                 rows={3}
                 autoFocus
-                className="w-full resize-none rounded-lg border border-gray-200 px-4 py-3 text-gray-700 focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
+                className="w-full resize-none rounded-lg border border-gray-200 px-4 py-3 text-gray-700 focus:border-vignette focus:outline-none focus:ring-1 focus:ring-vignette"
               />
               <EditActions
                 onSave={handleSaveStyle}
@@ -500,7 +500,7 @@ export default function RoomDetail({
                       }
                     }}
                     autoFocus
-                    className="w-full rounded-md border border-gray-200 bg-white py-2 pl-7 pr-3 text-lg focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
+                    className="w-full rounded-md border border-gray-200 bg-white py-2 pl-7 pr-3 text-lg focus:border-vignette focus:outline-none focus:ring-1 focus:ring-vignette"
                   />
                 </div>
                 <EditActions
@@ -559,12 +559,12 @@ export default function RoomDetail({
         </div>
 
         {hasPlan && displayPlan?.styleThesis && (
-          <div className="mb-6 flex gap-3 rounded-xl bg-nest-muted/50 px-4 py-3.5 ring-1 ring-nest/10">
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-nest text-white">
+          <div className="mb-6 flex gap-3 rounded-xl bg-vignette-muted/50 px-4 py-3.5 ring-1 ring-vignette/10">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-vignette text-white">
               <Compass size={15} strokeWidth={1.75} aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="type-label mb-1 text-nest/50">
+              <p className="type-label mb-1 text-vignette/50">
                 {viewingHistory ? 'Direction (earlier plan)' : 'Direction'}
               </p>
               <p className="font-serif text-xl leading-snug text-gray-900">
@@ -579,7 +579,7 @@ export default function RoomDetail({
             <button
               type="button"
               onClick={onCheckPiece}
-              className="group flex w-full items-start gap-4 rounded-2xl bg-nest px-5 py-5 text-left text-white shadow-[0_8px_24px_rgba(44,95,93,0.18)] transition-colors hover:bg-nest-light"
+              className="group flex w-full items-start gap-4 rounded-2xl bg-vignette px-5 py-5 text-left text-white shadow-[0_8px_24px_rgba(44,95,93,0.18)] transition-colors hover:bg-vignette-light"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
                 <ScanSearch size={22} strokeWidth={1.75} aria-hidden="true" />
@@ -628,7 +628,7 @@ export default function RoomDetail({
               <button
                 type="button"
                 onClick={onCheckPiece}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-nest transition-colors hover:text-nest-light"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-vignette transition-colors hover:text-vignette-light"
               >
                 <ScanSearch size={14} strokeWidth={1.75} aria-hidden="true" />
                 Before you buy

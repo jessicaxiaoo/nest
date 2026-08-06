@@ -1,4 +1,4 @@
-const CACHE_PREFIX = 'nest:room-analysis:'
+const CACHE_PREFIX = 'vignette:room-analysis:'
 
 async function hashPhoto(photo) {
   const data = String(photo || '')

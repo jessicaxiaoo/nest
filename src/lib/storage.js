@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'nest-rooms'
+const STORAGE_KEY = 'vignette-rooms'
 
 export function loadRooms() {
   try {

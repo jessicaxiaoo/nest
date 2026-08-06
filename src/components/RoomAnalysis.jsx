@@ -52,7 +52,7 @@ function AnalysisCard({ label, icon: Icon, points, splitMinorItems = false }) {
   return (
     <div className="self-start rounded-lg px-1 py-1 sm:px-2 sm:py-2">
       <p className="mb-2 flex items-center gap-2 text-sm font-medium text-gray-800">
-        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-nest shadow-sm ring-1 ring-gray-100">
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-vignette shadow-sm ring-1 ring-gray-100">
           <Icon size={14} strokeWidth={1.75} aria-hidden="true" />
         </span>
         {label}

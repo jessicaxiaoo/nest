@@ -259,7 +259,7 @@ export default function RoomPlan({
   if (!latestPlan) {
     return (
       <div className="rounded-xl bg-gray-50/80 px-6 py-10 text-center ring-1 ring-gray-100">
-        <span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-nest-muted text-nest">
+        <span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-vignette-muted text-vignette">
           <ScanSearch size={20} strokeWidth={1.75} aria-hidden="true" />
         </span>
         <p className="mb-1 font-serif text-2xl font-medium text-gray-900">
@@ -316,7 +316,7 @@ export default function RoomPlan({
               hideDirection ? 'text-xl' : 'text-2xl'
             }`}
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-nest-muted text-nest">
+            <span className="flex h-8 w-8 items-center justify-center rounded-md bg-vignette-muted text-vignette">
               <ScanSearch size={16} strokeWidth={1.75} aria-hidden="true" />
             </span>
             Current room analysis
@@ -327,7 +327,7 @@ export default function RoomPlan({
         </div>
       </div>
 
-      <div className="rounded-xl bg-nest-muted/40 px-3 py-4 sm:px-4">
+      <div className="rounded-xl bg-vignette-muted/40 px-3 py-4 sm:px-4">
         {analysisBusy ? (
           <LoadingProgress
             title="Re-analyzing your photo…"
@@ -367,7 +367,7 @@ export default function RoomPlan({
             hideDirection ? 'text-xl' : 'text-2xl'
           }`}
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-nest-muted text-nest">
+          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-vignette-muted text-vignette">
             <ListOrdered size={16} strokeWidth={1.75} aria-hidden="true" />
           </span>
           Recommendations for your room, by priority
@@ -511,12 +511,12 @@ export default function RoomPlan({
       {analysisSection}
 
       {plan.styleThesis && !hideDirection && (
-        <div className="flex gap-3 rounded-xl bg-nest-muted/50 px-4 py-3.5 ring-1 ring-nest/10">
-          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-nest text-white">
+        <div className="flex gap-3 rounded-xl bg-vignette-muted/50 px-4 py-3.5 ring-1 ring-vignette/10">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-vignette text-white">
             <Compass size={15} strokeWidth={1.75} aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="type-label mb-1 text-nest/50">Direction</p>
+            <p className="type-label mb-1 text-vignette/50">Direction</p>
             <p className="font-serif text-xl leading-snug text-gray-900 line-clamp-2">
               {plan.styleThesis}
             </p>
@@ -544,7 +544,7 @@ export default function RoomPlan({
                 onClick={() => onViewPlan?.(null)}
                 className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors ${
                   !viewingHistory
-                    ? 'bg-nest-muted/60 font-medium text-nest'
+                    ? 'bg-vignette-muted/60 font-medium text-vignette'
                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
                 }`}
               >

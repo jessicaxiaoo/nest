@@ -238,7 +238,7 @@ export default function FindAlternatives({
         <button
           type="button"
           onClick={handleFind}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-nest px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-nest-light focus:outline-none focus-visible:ring-2 focus-visible:ring-nest focus-visible:ring-offset-2 sm:w-auto"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-vignette px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-vignette-light focus:outline-none focus-visible:ring-2 focus-visible:ring-vignette focus-visible:ring-offset-2 sm:w-auto"
         >
           <Sparkles size={16} strokeWidth={1.75} aria-hidden="true" />
           Find alternatives
@@ -262,7 +262,7 @@ export default function FindAlternatives({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="flex items-center gap-2.5 font-serif text-2xl font-medium text-gray-900">
-              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-nest-muted text-nest">
+              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-vignette-muted text-vignette">
                 <Sparkles size={16} strokeWidth={1.75} aria-hidden="true" />
               </span>
               Alternatives

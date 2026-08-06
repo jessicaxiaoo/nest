@@ -1,4 +1,4 @@
-const CACHE_PREFIX = 'nest:shop:'
+const CACHE_PREFIX = 'vignette:shop:'
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 function cacheKey(query, maxPrice) {

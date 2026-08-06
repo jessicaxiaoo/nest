@@ -11,7 +11,7 @@ export default function LoadingProgress({ title, steps }) {
         <LoaderCircle
           size={16}
           strokeWidth={2}
-          className="animate-spin text-nest"
+          className="animate-spin text-vignette"
           aria-hidden="true"
         />
         {title}
@@ -35,13 +35,13 @@ export default function LoadingProgress({ title, steps }) {
                 aria-hidden="true"
               >
                 {state === 'done' ? (
-                  <Check size={12} strokeWidth={2.5} className="text-nest" />
+                  <Check size={12} strokeWidth={2.5} className="text-vignette" />
                 ) : state === 'error' ? (
                   <X size={12} strokeWidth={2.5} className="text-red-500" />
                 ) : (
                   <span
                     className={`h-1.5 w-1.5 rounded-full ${
-                      state === 'active' ? 'bg-nest' : 'bg-gray-200'
+                      state === 'active' ? 'bg-vignette' : 'bg-gray-200'
                     }`}
                   />
                 )}

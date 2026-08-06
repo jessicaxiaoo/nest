@@ -1,6 +1,6 @@
 import { failingAxes } from '../server/verdict.js'
 
-const CACHE_PREFIX = 'nest:alternatives:'
+const CACHE_PREFIX = 'vignette:alternatives:'
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 function simpleHash(value) {

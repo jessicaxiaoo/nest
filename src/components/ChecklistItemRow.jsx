@@ -54,7 +54,7 @@ export default function ChecklistItemRow({
   return (
     <div className="rounded-lg px-3 py-4 transition-colors hover:bg-gray-50/80 sm:px-4">
       <div className="mb-2 flex min-w-0 items-center gap-2.5">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-nest-muted text-nest">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-vignette-muted text-vignette">
           <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
         </span>
         <h3
@@ -65,7 +65,7 @@ export default function ChecklistItemRow({
           {title}
         </h3>
         {bought ? (
-          <span className="shrink-0 rounded-md bg-nest-muted px-1.5 py-0.5 text-[11px] font-medium text-nest">
+          <span className="shrink-0 rounded-md bg-vignette-muted px-1.5 py-0.5 text-[11px] font-medium text-vignette">
             Bought
           </span>
         ) : null}
@@ -94,7 +94,7 @@ export default function ChecklistItemRow({
                   if (e.key === 'Enter') handleSaveBudget()
                   if (e.key === 'Escape') handleCancelBudget()
                 }}
-                className="w-full rounded-md border border-gray-200 py-1.5 pl-6 pr-2 text-sm text-gray-900 focus:border-nest focus:outline-none focus:ring-1 focus:ring-nest"
+                className="w-full rounded-md border border-gray-200 py-1.5 pl-6 pr-2 text-sm text-gray-900 focus:border-vignette focus:outline-none focus:ring-1 focus:ring-vignette"
                 autoFocus
               />
             </div>
@@ -139,7 +139,7 @@ export default function ChecklistItemRow({
           }
           className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
             bought
-              ? 'bg-nest text-white'
+              ? 'bg-vignette text-white'
               : 'border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'
           }`}
         >

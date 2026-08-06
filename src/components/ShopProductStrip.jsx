@@ -29,7 +29,7 @@ export function ShopProductCard({ product, badge }) {
       <div className="relative">
         <ProductThumb src={product.thumbnail} alt={product.title || 'Product'} />
         {badge ? (
-          <span className="absolute left-1 top-1 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-nest">
+          <span className="absolute left-1 top-1 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-vignette">
             {badge}
           </span>
         ) : null}
@@ -37,7 +37,7 @@ export function ShopProductCard({ product, badge }) {
           <ExternalLink
             size={11}
             strokeWidth={1.75}
-            className="absolute right-1 top-1 rounded bg-white/90 p-0.5 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 group-hover:text-nest"
+            className="absolute right-1 top-1 rounded bg-white/90 p-0.5 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 group-hover:text-vignette"
             aria-hidden="true"
           />
         ) : null}
@@ -82,7 +82,7 @@ export function ProductSaveButton({ saved, onSave, onRemove }) {
         type="button"
         onClick={onRemove}
         title="Remove from saved pieces"
-        className="group inline-flex w-full items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-nest transition-colors hover:bg-red-50 hover:text-red-600"
+        className="group inline-flex w-full items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-vignette transition-colors hover:bg-red-50 hover:text-red-600"
       >
         <Check
           size={12}
@@ -104,7 +104,7 @@ export function ProductSaveButton({ saved, onSave, onRemove }) {
 
   if (saved) {
     return (
-      <span className="inline-flex w-full items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-nest">
+      <span className="inline-flex w-full items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-vignette">
         <Check size={12} strokeWidth={2} aria-hidden="true" />
         Saved
       </span>
@@ -117,7 +117,7 @@ export function ProductSaveButton({ saved, onSave, onRemove }) {
     <button
       type="button"
       onClick={onSave}
-      className="inline-flex w-full items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-nest transition-colors hover:bg-nest-muted"
+      className="inline-flex w-full items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-medium text-vignette transition-colors hover:bg-vignette-muted"
     >
       <Plus size={12} strokeWidth={2} aria-hidden="true" />
       Save

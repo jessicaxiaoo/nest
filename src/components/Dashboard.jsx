@@ -6,7 +6,7 @@ function RoomCard({ room, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="group overflow-hidden rounded-xl border border-gray-100 bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-nest focus-visible:ring-offset-2"
+      className="group overflow-hidden rounded-xl border border-gray-100 bg-white text-left shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-vignette focus-visible:ring-offset-2"
     >
       <div className="aspect-[4/3] overflow-hidden bg-gray-50">
         {room.photo ? (
@@ -34,7 +34,9 @@ export default function Dashboard({ rooms, onAddRoom, onOpenRoom }) {
     <div className="min-h-screen">
       <header className="border-b border-gray-100">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-          <h1 className="font-serif text-2xl text-nest">Nest</h1>
+          <div className="flex items-center">
+            <img src="/vignette.png" alt="Vignette" className="h-12 sm:h-16" />
+          </div>
           <Button onClick={onAddRoom} className="flex items-center gap-2">
             <Plus className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
             Add a Room
